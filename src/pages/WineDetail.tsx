@@ -173,7 +173,6 @@ export default function WineDetail() {
         {/* Info Grid */}
         <div className="grid grid-cols-2 gap-3">
           <InfoItem label="Tipo" value={getTypeLabel(wine.tipo)} />
-          <InfoItem label="Origen" value={wine.do || getCanonicalIsland(wine.isla)} />
           <InfoItem label="Isla" value={getCanonicalIsland(wine.isla)} />
           <InfoItem label="Añada" value={wine.anada?.toString() || "—"} />
         </div>
