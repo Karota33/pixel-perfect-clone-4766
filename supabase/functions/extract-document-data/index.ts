@@ -30,9 +30,15 @@ serve(async (req) => {
 
     if (downloadError || !fileData) throw new Error("Could not download file");
 
-    // Convert to base64
+    // Convert to base64 (chunk to avoid stack overflow)
     const arrayBuffer = await fileData.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    const base64 = btoa(binary);
 
     // Call Anthropic with the PDF
     const response = await fetch("https://api.anthropic.com/v1/messages", {
