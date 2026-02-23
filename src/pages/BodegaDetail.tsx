@@ -1,8 +1,19 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useBodegaDetail } from "@/hooks/useBodegas";
 import { useState, useEffect } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Save, ExternalLink, Phone, Mail } from "lucide-react";
+import { ArrowLeft, Save, ExternalLink, Phone, Mail, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import StarRating from "@/components/StarRating";
 import { calcMarginReal, getMarginStatus, getMarginColor } from "@/lib/margins";
@@ -312,6 +323,50 @@ export default function BodegaDetail() {
           <Save className="w-4 h-4" />
           Guardar
         </button>
+
+        {/* Delete */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors">
+              <Trash2 className="w-4 h-4" />
+              Eliminar bodega
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar esta bodega?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Los vinos vinculados quedarán sin bodega asignada. Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={async () => {
+                  // Unlink wines
+                  await supabase
+                    .from("vinos")
+                    .update({ bodega_id: null })
+                    .eq("bodega_id", id!);
+                  // Delete bodega
+                  const { error } = await supabase
+                    .from("bodegas")
+                    .delete()
+                    .eq("id", id!);
+                  if (error) {
+                    toast.error("Error al eliminar");
+                  } else {
+                    toast.success("Bodega eliminada");
+                    navigate("/bodegas");
+                  }
+                }}
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
