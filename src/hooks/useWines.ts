@@ -32,10 +32,10 @@ export function useWines() {
     async function fetchSupaData() {
       const { data } = await supabase
         .from("vinos")
-        .select("nombre, descripcion_corta, foto_url");
+        .select("nombre, descripcion_corta, foto_url, subtipo");
       if (!data) return;
       const dataMap = new Map(
-        data.map((v) => [v.nombre, { descripcion_corta: v.descripcion_corta, foto_url: v.foto_url }])
+        data.map((v) => [v.nombre, { descripcion_corta: v.descripcion_corta, foto_url: v.foto_url, subtipo: v.subtipo }])
       );
       setWines((prev) =>
         prev.map((w) => {
@@ -44,6 +44,7 @@ export function useWines() {
             ...w,
             descripcion_corta: supa?.descripcion_corta ?? null,
             foto_url: supa?.foto_url ?? null,
+            subtipo: supa?.subtipo ?? null,
           };
         })
       );

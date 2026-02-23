@@ -1,0 +1,1 @@
+ALTER TABLE public.vinos ADD COLUMN subtipo text DEFAULT NULL;

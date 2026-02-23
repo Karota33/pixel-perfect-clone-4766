@@ -520,6 +520,7 @@ export type Database = {
           precio_carta: number | null
           precio_coste: number | null
           stock_actual: number | null
+          subtipo: string | null
           tipo: string
           updated_at: string | null
           uvas: string | null
@@ -544,6 +545,7 @@ export type Database = {
           precio_carta?: number | null
           precio_coste?: number | null
           stock_actual?: number | null
+          subtipo?: string | null
           tipo: string
           updated_at?: string | null
           uvas?: string | null
@@ -568,6 +570,7 @@ export type Database = {
           precio_carta?: number | null
           precio_coste?: number | null
           stock_actual?: number | null
+          subtipo?: string | null
           tipo?: string
           updated_at?: string | null
           uvas?: string | null

@@ -9,7 +9,7 @@ import SearchBar from "@/components/SearchBar";
 import { Wine as WineIcon, Settings, Warehouse, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const TYPE_OPTIONS = ["Blanco", "Tinto", "Rosado", "Espumoso", "Dulce"];
+const TYPE_OPTIONS = ["Blanco", "Orange", "Tinto", "Rosado", "Espumoso", "Dulce"];
 
 export default function Index() {
   const { wines } = useWines();
@@ -24,7 +24,9 @@ export default function Index() {
     const q = search.toLowerCase();
     return wines
       .filter((w) => {
-        if (typeFilter && getTypeLabel(w.tipo) !== typeFilter) return false;
+        if (typeFilter === "Orange") {
+          if (w.subtipo !== "orange") return false;
+        } else if (typeFilter && getTypeLabel(w.tipo) !== typeFilter) return false;
         if (islandFilter && getCanonicalIsland(w.isla) !== islandFilter) return false;
         if (q) {
           const haystack = [w.nombre, w.bodega, w.uvas].filter(Boolean).join(" ").toLowerCase();
