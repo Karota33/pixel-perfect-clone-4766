@@ -34,6 +34,10 @@ ${dop ? `DO: ${dop}` : ""}`;
       systemPrompt =
         "Eres sommelier de un restaurante con estrella Michelin en Canarias. Escribe UNA frase de máximo 160 caracteres para presentar este vino en sala. Tono elegante, evocador, sin tecnicismos. Solo la frase, sin comillas.";
       userPrompt = wineContext;
+    } else if (field === "maridaje") {
+      systemPrompt =
+        "Eres sommelier de un restaurante con estrella Michelin en Canarias. Sugiere 2-3 maridajes concretos para este vino con platos de cocina canaria o mediterránea. Tono profesional pero accesible. Responde con texto plano, sin JSON ni markdown.";
+      userPrompt = wineContext;
     } else {
       systemPrompt = `Eres sommelier de un restaurante con estrella Michelin en Canarias. Genera un JSON con exactamente 3 campos:
 - "vinedo": descripción del viñedo y elaboración (2-3 frases, tono evocador)
@@ -75,6 +79,8 @@ Responde SOLO con el JSON válido, sin markdown ni explicaciones.`;
 
     if (field === "descripcion_corta") {
       result = { descripcion_corta: text.trim() };
+    } else if (field === "maridaje") {
+      result = { maridaje: text.trim() };
     } else {
       try {
         const parsed = JSON.parse(text);
