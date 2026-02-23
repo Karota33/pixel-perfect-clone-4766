@@ -9,6 +9,8 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import WineDescriptionSection from "@/components/wine-detail/WineDescriptionSection";
+import WineCompletenessBar from "@/components/wine-detail/WineCompletenessBar";
+import WineMaridajesSection from "@/components/wine-detail/WineMaridajesSection";
 import { useBodegas } from "@/hooks/useBodegas";
 
 export default function WineDetail() {
@@ -142,6 +144,19 @@ export default function WineDetail() {
           </div>
         </div>
 
+        {/* Completeness Bar */}
+        {supaWine && (
+          <WineCompletenessBar
+            bodegaId={supaWine.bodega_id}
+            doValue={supaWine.do || wine.do}
+            descripcionCorta={supaWine.descripcion_corta}
+            descripcionLarga={supaWine.descripcion_larga}
+            precioCoste={precioCoste || wine.precio_coste}
+            uvas={wine.uvas || null}
+            anada={wine.anada}
+          />
+        )}
+
         {/* Info Grid */}
         <div className="grid grid-cols-2 gap-3">
           <InfoItem label="Tipo" value={getTypeLabel(wine.tipo)} />
@@ -264,6 +279,16 @@ export default function WineDetail() {
             initialCorta={supaWine.descripcion_corta || ""}
             initialLarga={supaWine.descripcion_larga || {}}
             initialNotas={supaWine.notas_internas || ""}
+          />
+         )}
+
+        {/* Maridajes Section */}
+        {supaWine && (
+          <WineMaridajesSection
+            vinoId={supaWine.id}
+            nombre={wine.nombre}
+            tipo={wine.tipo}
+            uvas={wine.uvas || null}
           />
         )}
               </div>

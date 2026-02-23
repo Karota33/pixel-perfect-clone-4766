@@ -11,6 +11,9 @@ import {
   GitCompareArrows,
   X,
   Save,
+  Loader2,
+  Check,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import FilterChips from "@/components/FilterChips";
@@ -20,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { fuzzyMatchWines } from "@/lib/fuzzyMatch";
 
 function formatSize(bytes: number | null): string {
   if (!bytes) return "—";
@@ -55,7 +59,12 @@ export default function DocumentsList() {
   const [newBodegaNombre, setNewBodegaNombre] = useState("");
   const [creatingBodega, setCreatingBodega] = useState(false);
 
-  
+  // Extraction modal state
+  const [showExtraction, setShowExtraction] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractedData, setExtractedData] = useState<any[]>([]);
+  const [savingExtracted, setSavingExtracted] = useState(false);
+
 
   const handleCreateBodega = async () => {
     if (!newBodegaNombre.trim()) return;
@@ -150,6 +159,37 @@ export default function DocumentsList() {
 
       toast.success("Documento subido");
       setShowUpload(false);
+
+      // If ficha_tecnica PDF, trigger extraction
+      if (uploadTipo === "ficha_tecnica" && uploadFile.type === "application/pdf") {
+        setExtracting(true);
+        setShowExtraction(true);
+        try {
+          const { data: extractData, error: extractError } = await supabase.functions.invoke("extract-document-data", {
+            body: { storage_path: path },
+          });
+          if (extractError) throw extractError;
+          const vinos = extractData?.vinos || [];
+          // Enrich with fuzzy matches
+          const { data: existingWines } = await supabase.from("vinos").select("id, nombre, precio_coste");
+          const enriched = vinos.map((v: any) => {
+            const matches = existingWines ? fuzzyMatchWines(
+              [{ name: v.nombre || "", price: v.precio || 0 }],
+              existingWines.map((w: any) => ({ id: w.id, nombre: w.nombre, precio_coste: w.precio_coste }))
+            ) : { matched: [], unmatched: [] };
+            const existingBodega = bodegas.find((b) => b.nombre.toLowerCase() === (v.bodega || "").toLowerCase());
+            return { ...v, fuzzyMatch: matches.matched[0] || null, existingBodega };
+          });
+          setExtractedData(enriched);
+        } catch (e: any) {
+          console.error(e);
+          toast.error("Error al extraer datos del PDF");
+          setShowExtraction(false);
+        } finally {
+          setExtracting(false);
+        }
+      }
+
       resetUploadForm();
       fetchDocumentos();
     } catch (err: any) {
@@ -404,6 +444,37 @@ export default function DocumentsList() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Extraction Modal */}
+      <Dialog open={showExtraction} onOpenChange={setShowExtraction}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display">Datos extraídos</DialogTitle>
+          </DialogHeader>
+          {extracting ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Analizando PDF con IA...</p>
+            </div>
+          ) : extractedData.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">No se encontraron datos de vinos en el documento.</p>
+          ) : (
+            <div className="space-y-4 pt-2">
+              {extractedData.map((vino, i) => (
+                <ExtractedVinoCard
+                  key={i}
+                  vino={vino}
+                  bodegas={bodegas}
+                  onSaved={() => {
+                    setExtractedData((prev) => prev.filter((_, j) => j !== i));
+                    if (extractedData.length <= 1) setShowExtraction(false);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -452,6 +523,138 @@ function DocCard({
           )}
         </div>
         <FileText className="w-5 h-5 text-muted-foreground/40 shrink-0" />
+      </div>
+    </div>
+  );
+}
+
+function ExtractedVinoCard({
+  vino,
+  bodegas,
+  onSaved,
+}: {
+  vino: any;
+  bodegas: { id: string; nombre: string }[];
+  onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [action, setAction] = useState<"link" | "new" | "bodega" | null>(null);
+
+  const handleCreateBodega = async () => {
+    if (!vino.bodega) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from("bodegas")
+        .insert({ nombre: vino.bodega })
+        .select("id")
+        .single();
+      if (error) throw error;
+      toast.success(`Bodega "${vino.bodega}" creada`);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || "Error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLinkToExisting = async () => {
+    if (!vino.fuzzyMatch?.matchedId) return;
+    setSaving(true);
+    try {
+      const updates: any = {};
+      if (vino.precio) updates.precio_coste = vino.precio;
+      if (vino.uvas) updates.uvas = vino.uvas;
+      if (vino.do) updates.do = vino.do;
+      if (vino.anada) updates.anada = vino.anada;
+      if (vino.existingBodega) updates.bodega_id = vino.existingBodega.id;
+
+      const { error } = await supabase
+        .from("vinos")
+        .update(updates)
+        .eq("id", vino.fuzzyMatch.matchedId);
+      if (error) throw error;
+      toast.success(`Vino "${vino.fuzzyMatch.matchedName}" actualizado`);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || "Error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddNew = async () => {
+    setSaving(true);
+    try {
+      const bodegaId = vino.existingBodega?.id || null;
+      const { error } = await supabase.from("vinos").insert({
+        nombre: vino.nombre || "Sin nombre",
+        tipo: "tinto",
+        isla: "Tenerife",
+        do: vino.do || null,
+        uvas: vino.uvas || null,
+        anada: vino.anada || null,
+        precio_coste: vino.precio || null,
+        bodega_id: bodegaId,
+      });
+      if (error) throw error;
+      toast.success(`Vino "${vino.nombre}" añadido`);
+      onSaved();
+    } catch (e: any) {
+      toast.error(e.message || "Error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+      <div className="space-y-1">
+        <h4 className="text-sm font-semibold text-foreground">{vino.nombre || "—"}</h4>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          {vino.bodega && <span>🏠 {vino.bodega}{vino.existingBodega ? " ✓" : ""}</span>}
+          {vino.do && <span>📍 {vino.do}</span>}
+          {vino.uvas && <span>🍇 {vino.uvas}</span>}
+          {vino.anada && <span>📅 {vino.anada}</span>}
+          {vino.precio && <span>💰 {vino.precio}€</span>}
+        </div>
+        {vino.fuzzyMatch && (
+          <p className="text-xs text-primary mt-1">
+            Coincide con: <strong>{vino.fuzzyMatch.matchedName}</strong> ({Math.round(vino.fuzzyMatch.similarity * 100)}%)
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {vino.bodega && !vino.existingBodega && (
+          <button
+            onClick={handleCreateBodega}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-secondary-foreground text-xs font-medium rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            <Plus className="w-3 h-3" />
+            Crear bodega
+          </button>
+        )}
+        {vino.fuzzyMatch && (
+          <button
+            onClick={handleLinkToExisting}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            <Check className="w-3 h-3" />
+            Vincular a existente
+          </button>
+        )}
+        <button
+          onClick={handleAddNew}
+          disabled={saving}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-secondary-foreground text-xs font-medium rounded-lg hover:bg-accent transition-colors disabled:opacity-50"
+        >
+          <Plus className="w-3 h-3" />
+          Añadir como nuevo
+        </button>
       </div>
     </div>
   );
