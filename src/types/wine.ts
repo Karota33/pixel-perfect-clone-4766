@@ -11,6 +11,7 @@ export interface Wine {
   bodega: string | null;
   do: string | null;
   descripcion_corta?: string | null;
+  foto_url?: string | null;
 }
 
 export type RawWine = Omit<Wine, "id" | "bodega" | "do">;

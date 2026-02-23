@@ -37,6 +37,7 @@ export default function WineDetail() {
     notas_internas: string | null;
     bodega_id: string | null;
     do: string | null;
+    foto_url: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function WineDetail() {
     // Find wine in Supabase by nombre
     supabase
       .from("vinos")
-      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do")
+      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url")
       .eq("nombre", wine.nombre)
       .limit(1)
       .single()
@@ -113,6 +114,17 @@ export default function WineDetail() {
       </header>
 
       <main className="container max-w-2xl py-6 space-y-6 animate-fade-in">
+        {/* Hero photo */}
+        {supaWine?.foto_url && (
+          <div className="flex justify-center">
+            <img
+              src={supaWine.foto_url}
+              alt={wine.nombre}
+              className="h-48 object-contain rounded-xl"
+            />
+          </div>
+        )}
+
         {/* Name */}
         <div className="space-y-1">
           <h2 className="font-display text-2xl font-bold text-foreground leading-tight">
@@ -307,7 +319,13 @@ export default function WineDetail() {
         )}
 
         {/* Documents Section */}
-        {supaWine && <WineDocumentsSection vinoId={supaWine.id} />}
+        {supaWine && (
+          <WineDocumentsSection
+            vinoId={supaWine.id}
+            fotoUrl={supaWine.foto_url}
+            onFotoUpdated={(url) => setSupaWine((prev) => prev ? { ...prev, foto_url: url } : prev)}
+          />
+        )}
 
         {/* Price History */}
         {priceHistory.length > 0 && (
