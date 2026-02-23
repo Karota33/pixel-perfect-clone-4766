@@ -8,6 +8,8 @@ import WineDetail from "./pages/WineDetail";
 import Settings from "./pages/Settings";
 import BodegasList from "./pages/BodegasList";
 import BodegaDetail from "./pages/BodegaDetail";
+import DocumentsList from "./pages/DocumentsList";
+import PriceComparator from "./pages/PriceComparator";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +26,8 @@ const App = () => (
           <Route path="/settings" element={<Settings />} />
           <Route path="/bodegas" element={<BodegasList />} />
           <Route path="/bodegas/:id" element={<BodegaDetail />} />
+          <Route path="/documentos" element={<DocumentsList />} />
+          <Route path="/comparar-precios" element={<PriceComparator />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
