@@ -23,6 +23,13 @@ export default function WineCard({ wine }: WineCardProps) {
       className="w-full text-left bg-card rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow border border-border animate-fade-in"
     >
       <div className="flex items-start justify-between gap-3">
+        {wine.foto_url && (
+          <img
+            src={wine.foto_url}
+            alt={wine.nombre}
+            className="w-10 h-10 rounded-full object-cover shrink-0 border border-border"
+          />
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span

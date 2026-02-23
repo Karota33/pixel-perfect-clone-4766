@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, ExternalLink, Plus, Upload, Save, Loader2, Camera, X } from "lucide-react";
+import { FileText, ExternalLink, Plus, Save, Loader2, Camera, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { DOCUMENT_TYPES } from "@/hooks/useDocumentos";
 import { useBodegas } from "@/hooks/useBodegas";
@@ -28,17 +28,14 @@ const typeLabels: Record<string, string> = {
   otro: "Otro",
 };
 
-interface WineImage {
-  id: string;
-  storage_path: string;
-  url_publica: string | null;
-  tipo: string;
-  principal: boolean | null;
+interface Props {
+  vinoId: string;
+  fotoUrl: string | null;
+  onFotoUpdated: (url: string) => void;
 }
 
-export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
+export default function WineDocumentsSection({ vinoId, fotoUrl, onFotoUpdated }: Props) {
   const [docs, setDocs] = useState<DocRow[]>([]);
-  const [wineImage, setWineImage] = useState<WineImage | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const { bodegas } = useBodegas();
 
@@ -51,7 +48,8 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
   const [uploading, setUploading] = useState(false);
 
   // Photo upload state
-  const photoRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const fetchDocs = () => {
@@ -65,22 +63,8 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
       });
   };
 
-  const fetchImage = () => {
-    supabase
-      .from("imagenes")
-      .select("id, storage_path, url_publica, tipo, principal")
-      .eq("vino_id", vinoId)
-      .eq("principal", true)
-      .limit(1)
-      .then(({ data }) => {
-        if (data && data.length > 0) setWineImage(data[0]);
-        else setWineImage(null);
-      });
-  };
-
   useEffect(() => {
     fetchDocs();
-    fetchImage();
   }, [vinoId]);
 
   const openDoc = async (path: string | null) => {
@@ -107,12 +91,8 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
     try {
       const ext = uploadFile.name.split(".").pop();
       const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-
-      const { error: storageError } = await supabase.storage
-        .from("documentos")
-        .upload(path, uploadFile);
+      const { error: storageError } = await supabase.storage.from("documentos").upload(path, uploadFile);
       if (storageError) throw storageError;
-
       const { error: dbError } = await supabase.from("documentos").insert({
         nombre: uploadNombre,
         tipo: uploadTipo,
@@ -123,7 +103,6 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
         mime_type: uploadFile.type,
       });
       if (dbError) throw dbError;
-
       toast.success("Documento adjuntado");
       setShowUpload(false);
       setUploadFile(null);
@@ -150,54 +129,27 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
       toast.error("Imagen demasiado grande (máx 10 MB)");
       return;
     }
-
     setUploadingPhoto(true);
     try {
       const ext = file.name.split(".").pop();
-      const path = `wines/${vinoId}_${Date.now()}.${ext}`;
-
-      const { error: storageError } = await supabase.storage
-        .from("documentos")
-        .upload(path, file);
+      const path = `${vinoId}_${Date.now()}.${ext}`;
+      const { error: storageError } = await supabase.storage.from("fotos-vinos").upload(path, file);
       if (storageError) throw storageError;
 
-      // If there's an existing principal image, unset it
-      if (wineImage) {
-        await supabase
-          .from("imagenes")
-          .update({ principal: false })
-          .eq("id", wineImage.id);
-      }
+      const { data: urlData } = supabase.storage.from("fotos-vinos").getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
 
-      const { error: dbError } = await supabase.from("imagenes").insert({
-        vino_id: vinoId,
-        storage_path: path,
-        tipo: "botella",
-        principal: true,
-      });
-      if (dbError) throw dbError;
-
+      await supabase.from("vinos").update({ foto_url: publicUrl }).eq("id", vinoId);
       toast.success("Foto del vino actualizada");
-      fetchImage();
+      onFotoUpdated(publicUrl);
     } catch (err: any) {
       toast.error(err.message || "Error al subir imagen");
     } finally {
       setUploadingPhoto(false);
-      if (photoRef.current) photoRef.current.value = "";
+      if (galleryRef.current) galleryRef.current.value = "";
+      if (cameraRef.current) cameraRef.current.value = "";
     }
   };
-
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (!wineImage) { setImageUrl(null); return; }
-    if (wineImage.url_publica) { setImageUrl(wineImage.url_publica); return; }
-    supabase.storage
-      .from("documentos")
-      .createSignedUrl(wineImage.storage_path, 3600)
-      .then(({ data }) => {
-        if (data?.signedUrl) setImageUrl(data.signedUrl);
-      });
-  }, [wineImage]);
 
   return (
     <div className="space-y-4">
@@ -207,30 +159,41 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
           <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             📷 Foto del vino
           </h3>
-          <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-secondary text-secondary-foreground rounded-lg text-xs font-medium hover:bg-accent transition-colors cursor-pointer">
-            {uploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-            {uploadingPhoto ? "Subiendo..." : imageUrl ? "Cambiar" : "Subir foto"}
-            <input
-              ref={photoRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={handlePhotoUpload}
-              disabled={uploadingPhoto}
-            />
-          </label>
+          <div className="flex items-center gap-1.5">
+            <label className="flex items-center gap-1 px-2 py-1.5 bg-secondary text-secondary-foreground rounded-lg text-xs font-medium hover:bg-accent transition-colors cursor-pointer">
+              {uploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+              Galería
+              <input
+                ref={galleryRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handlePhotoUpload}
+                disabled={uploadingPhoto}
+              />
+            </label>
+            <label className="flex items-center gap-1 px-2 py-1.5 bg-secondary text-secondary-foreground rounded-lg text-xs font-medium hover:bg-accent transition-colors cursor-pointer">
+              {uploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+              Cámara
+              <input
+                ref={cameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoUpload}
+                disabled={uploadingPhoto}
+              />
+            </label>
+          </div>
         </div>
-        {imageUrl ? (
+        {fotoUrl ? (
           <div className="p-4 flex justify-center">
-            <img
-              src={imageUrl}
-              alt="Foto del vino"
-              className="max-h-64 rounded-lg object-contain"
-            />
+            <img src={fotoUrl} alt="Foto del vino" className="max-h-64 rounded-lg object-contain" />
           </div>
         ) : (
           <div className="p-6 text-center text-muted-foreground/60 text-sm">
-            Sin foto. Sube una imagen JPG/PNG de la botella.
+            Sin foto. Sube una imagen o haz una foto con la cámara.
           </div>
         )}
       </div>
@@ -244,19 +207,11 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
           <label className="flex items-center gap-1.5 px-2.5 py-1.5 bg-secondary text-secondary-foreground rounded-lg text-xs font-medium hover:bg-accent transition-colors cursor-pointer">
             <Plus className="w-3.5 h-3.5" />
             Adjuntar
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
+            <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls,.csv,.jpg,.jpeg,.png" className="hidden" onChange={handleFileSelect} />
           </label>
         </div>
         {docs.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground/60 text-sm">
-            Sin documentos vinculados
-          </div>
+          <div className="p-4 text-center text-muted-foreground/60 text-sm">Sin documentos vinculados</div>
         ) : (
           <div className="divide-y divide-border">
             {docs.map((doc) => (
@@ -271,9 +226,7 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
                     <p className="text-sm font-medium text-foreground truncate">{doc.nombre}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="px-1.5 py-0.5 bg-secondary rounded">{typeLabels[doc.tipo] || doc.tipo}</span>
-                      {doc.fecha_documento && (
-                        <span>{new Date(doc.fecha_documento).toLocaleDateString("es-ES")}</span>
-                      )}
+                      {doc.fecha_documento && <span>{new Date(doc.fecha_documento).toLocaleDateString("es-ES")}</span>}
                     </div>
                   </div>
                 </div>
@@ -293,20 +246,11 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
           <div className="space-y-4 pt-2">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Nombre</label>
-              <input
-                type="text"
-                value={uploadNombre}
-                onChange={(e) => setUploadNombre(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-              />
+              <input type="text" value={uploadNombre} onChange={(e) => setUploadNombre(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
-              <select
-                value={uploadTipo}
-                onChange={(e) => setUploadTipo(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-              >
+              <select value={uploadTipo} onChange={(e) => setUploadTipo(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
                 {DOCUMENT_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
@@ -314,22 +258,14 @@ export default function WineDocumentsSection({ vinoId }: { vinoId: string }) {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Bodega (opcional)</label>
-              <select
-                value={uploadBodegaId}
-                onChange={(e) => setUploadBodegaId(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-              >
+              <select value={uploadBodegaId} onChange={(e) => setUploadBodegaId(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
                 <option value="">Sin bodega</option>
                 {bodegas.map((b) => (
                   <option key={b.id} value={b.id}>{b.nombre}</option>
                 ))}
               </select>
             </div>
-            <button
-              onClick={handleUpload}
-              disabled={uploading || !uploadFile}
-              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
+            <button onClick={handleUpload} disabled={uploading || !uploadFile} className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
               <Save className="w-4 h-4" />
               {uploading ? "Subiendo..." : "Guardar documento"}
             </button>

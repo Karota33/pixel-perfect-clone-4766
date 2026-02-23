@@ -27,24 +27,28 @@ function saveWines(wines: Wine[]) {
 export function useWines() {
   const [wines, setWines] = useState<Wine[]>(loadWines);
 
-  // Fetch descripcion_corta from Supabase and merge
+  // Fetch descripcion_corta and foto_url from Supabase and merge
   useEffect(() => {
-    async function fetchDescriptions() {
+    async function fetchSupaData() {
       const { data } = await supabase
         .from("vinos")
-        .select("nombre, descripcion_corta");
+        .select("nombre, descripcion_corta, foto_url");
       if (!data) return;
-      const descMap = new Map(
-        data.map((v) => [v.nombre, v.descripcion_corta])
+      const dataMap = new Map(
+        data.map((v) => [v.nombre, { descripcion_corta: v.descripcion_corta, foto_url: v.foto_url }])
       );
       setWines((prev) =>
-        prev.map((w) => ({
-          ...w,
-          descripcion_corta: descMap.get(w.nombre) ?? null,
-        }))
+        prev.map((w) => {
+          const supa = dataMap.get(w.nombre);
+          return {
+            ...w,
+            descripcion_corta: supa?.descripcion_corta ?? null,
+            foto_url: supa?.foto_url ?? null,
+          };
+        })
       );
     }
-    fetchDescriptions();
+    fetchSupaData();
   }, []);
 
   useEffect(() => {

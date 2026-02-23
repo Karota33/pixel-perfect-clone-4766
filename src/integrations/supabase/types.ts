@@ -506,6 +506,7 @@ export type Database = {
           descripcion_larga: Json | null
           do: string | null
           estado: string | null
+          foto_url: string | null
           id: string
           isla: string
           isla_normalizada: string | null
@@ -528,6 +529,7 @@ export type Database = {
           descripcion_larga?: Json | null
           do?: string | null
           estado?: string | null
+          foto_url?: string | null
           id?: string
           isla: string
           isla_normalizada?: string | null
@@ -550,6 +552,7 @@ export type Database = {
           descripcion_larga?: Json | null
           do?: string | null
           estado?: string | null
+          foto_url?: string | null
           id?: string
           isla?: string
           isla_normalizada?: string | null
