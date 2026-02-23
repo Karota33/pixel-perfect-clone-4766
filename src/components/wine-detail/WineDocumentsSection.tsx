@@ -183,10 +183,13 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
       if (dbError) throw dbError;
       toast.success("Documento adjuntado");
 
-      // Close dialog and reset form BEFORE triggering extraction
+      // Save values before resetting state
       const savedPath = path;
       const shouldExtract = finalTipo === "ficha_tecnica" && ext === "pdf";
       
+      console.log("[handleUpload] Upload complete. tipo:", finalTipo, "ext:", ext, "shouldExtract:", shouldExtract, "storagePath:", savedPath);
+
+      // Close dialog and reset form
       setShowUpload(false);
       setUploadFile(null);
       setUploadNombre("");
@@ -194,27 +197,33 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
       setUploadBodegaId("");
       if (fileRef.current) fileRef.current.value = "";
       fetchDocs();
+      setUploading(false);
 
-      // Trigger extraction AFTER closing the upload dialog
+      // Trigger extraction AFTER closing the upload dialog — must be awaited
       if (shouldExtract) {
-        triggerExtraction(savedPath);
+        console.log("[handleUpload] Iniciando extracción para documento, storagePath:", savedPath);
+        await triggerExtraction(savedPath);
       }
     } catch (err: any) {
+      console.error("[handleUpload] Error:", err);
       toast.error(err.message || "Error al subir");
-    } finally {
       setUploading(false);
     }
   };
 
   const triggerExtraction = async (storagePath: string) => {
+    console.log("[triggerExtraction] CALLED with storagePath:", storagePath);
     setExtracting(true);
     try {
-      console.log("[triggerExtraction] Invoking extract-document-data with path:", storagePath);
+      console.log("[triggerExtraction] Invoking supabase.functions.invoke('extract-document-data')...");
       const { data, error } = await supabase.functions.invoke("extract-document-data", {
         body: { storage_path: storagePath },
       });
-      console.log("[triggerExtraction] Response - data:", data, "error:", error);
-      if (error) throw new Error(error.message || "Error al llamar a la función de extracción");
+      console.log("[triggerExtraction] Response received - data:", JSON.stringify(data), "error:", error);
+      if (error) {
+        console.error("[triggerExtraction] Function error:", error);
+        throw new Error(error.message || "Error al llamar a la función de extracción");
+      }
       if (!data || typeof data !== "object") throw new Error("La función no devolvió datos válidos");
       if (data.error) throw new Error(data.error);
 
