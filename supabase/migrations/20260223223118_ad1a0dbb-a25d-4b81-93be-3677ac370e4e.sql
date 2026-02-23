@@ -1,0 +1,1 @@
+ALTER TABLE vinos ADD COLUMN IF NOT EXISTS id_local integer UNIQUE;

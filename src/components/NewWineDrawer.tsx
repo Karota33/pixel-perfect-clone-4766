@@ -89,6 +89,15 @@ export default function NewWineDrawer({ open, onOpenChange, onCreated }: Props) 
     if (!canSave || saving) return;
     setSaving(true);
     try {
+      // Get next id_local
+      const { data: maxRow } = await supabase
+        .from("vinos")
+        .select("id_local")
+        .order("id_local", { ascending: false })
+        .limit(1)
+        .single();
+      const nextIdLocal = (maxRow?.id_local ?? 0) + 1;
+
       const { error } = await supabase.from("vinos").insert({
         nombre: nombre.trim(),
         anada: Number(anada),
@@ -100,6 +109,7 @@ export default function NewWineDrawer({ open, onOpenChange, onCreated }: Props) 
         do: doValue || null,
         uvas: uvas.trim() || null,
         formato_ml: formatoMl,
+        id_local: nextIdLocal,
       });
       if (error) throw error;
       toast.success("Vino añadido a la carta");
