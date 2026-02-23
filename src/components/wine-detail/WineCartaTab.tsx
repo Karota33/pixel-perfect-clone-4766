@@ -212,6 +212,26 @@ export default function WineCartaTab({
         </div>
       )}
 
+      {/* Technical details compact line */}
+      {(supaWine?.graduacion || supaWine?.temp_servicio_min || supaWine?.crianza || supaWine?.puntuacion_parker) && (
+        <div className="bg-secondary/50 rounded-lg px-3 py-2.5 space-y-1">
+          <p className="text-sm text-foreground">
+            {[
+              supaWine.graduacion ? `${supaWine.graduacion}°` : null,
+              supaWine.temp_servicio_min
+                ? `${supaWine.temp_servicio_min}${supaWine.temp_servicio_max ? `-${supaWine.temp_servicio_max}` : ""}°C`
+                : null,
+              supaWine.crianza || null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+          {supaWine.puntuacion_parker && (
+            <p className="text-xs text-muted-foreground">Parker: {supaWine.puntuacion_parker} pts</p>
+          )}
+        </div>
+      )}
+
       {/* Stock + Precio Carta */}
       <div className="bg-card rounded-xl border border-border p-4 space-y-5">
         {/* Stock */}

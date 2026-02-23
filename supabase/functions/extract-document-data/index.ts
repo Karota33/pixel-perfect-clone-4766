@@ -51,21 +51,25 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
         max_tokens: 2048,
-        system: `Eres un experto en vinos canarios. Analiza este documento (ficha técnica de vino) y extrae la siguiente información en JSON:
+        system: `Eres un experto en vinos canarios. Analiza este documento (ficha técnica de vino) y extrae exactamente estos campos. Devuelve SOLO un JSON válido sin texto adicional:
 {
-  "vinos": [
-    {
-      "nombre": "nombre del vino",
-      "bodega": "nombre de la bodega",
-      "do": "denominación de origen (usar formato D.O. Nombre)",
-      "uvas": "variedades de uva separadas por coma",
-      "anada": número o null,
-      "precio": número o null
-    }
-  ]
+  "nombre": "nombre del vino (solo nombre, sin añada ni formato)",
+  "anada": número o null,
+  "do": "zona de producción / denominación de origen (usar formato D.O. Nombre)",
+  "isla": "inferir de la DO: Gran Canaria/Tenerife/Lanzarote/La Palma/El Hierro/La Gomera/Fuerteventura",
+  "uvas": "todas las variedades de uva separadas por +",
+  "graduacion": número (grados alcohólicos) o null,
+  "temp_servicio_min": número (temperatura mínima de servicio en °C) o null,
+  "temp_servicio_max": número (temperatura máxima de servicio en °C) o null,
+  "crianza": "descripción de crianza/envejecimiento" o null,
+  "descripcion_corta": "campo Resumen del PDF" o null,
+  "descripcion_larga": "campo Descripción completa del PDF" o null,
+  "puntuacion_parker": número (puntuación Parker/guía) o null,
+  "formato_ml": número (inferir del título: 50cl=500, 75cl=750, 37.5cl=375, 150cl=1500) o 750,
+  "bodega": "marca/productor, inferir del nombre del vino" o null,
+  "precio": número (precio si aparece) o null
 }
-Si encuentras varios vinos, inclúyelos todos. Si un campo no aparece, usa null.
-Responde SOLO con el JSON válido, sin markdown ni explicaciones.`,
+Si un campo no aparece en el documento, usa null. Responde SOLO con el JSON válido.`,
         messages: [{
           role: "user",
           content: [
@@ -79,7 +83,7 @@ Responde SOLO con el JSON válido, sin markdown ni explicaciones.`,
             },
             {
               type: "text",
-              text: "Extrae los datos de vinos de este documento.",
+              text: "Extrae los datos de vinos de este documento (ficha técnica).",
             },
           ],
         }],

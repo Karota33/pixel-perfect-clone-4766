@@ -504,6 +504,7 @@ export type Database = {
           anada: number | null
           bodega_id: string | null
           created_at: string | null
+          crianza: string | null
           descripcion_corta: string | null
           descripcion_en: string | null
           descripcion_larga: Json | null
@@ -511,6 +512,7 @@ export type Database = {
           estado: string | null
           formato_ml: number | null
           foto_url: string | null
+          graduacion: number | null
           id: string
           isla: string
           isla_normalizada: string | null
@@ -519,8 +521,11 @@ export type Database = {
           notas_internas: string | null
           precio_carta: number | null
           precio_coste: number | null
+          puntuacion_parker: number | null
           stock_actual: number | null
           subtipo: string | null
+          temp_servicio_max: number | null
+          temp_servicio_min: number | null
           tipo: string
           updated_at: string | null
           uvas: string | null
@@ -529,6 +534,7 @@ export type Database = {
           anada?: number | null
           bodega_id?: string | null
           created_at?: string | null
+          crianza?: string | null
           descripcion_corta?: string | null
           descripcion_en?: string | null
           descripcion_larga?: Json | null
@@ -536,6 +542,7 @@ export type Database = {
           estado?: string | null
           formato_ml?: number | null
           foto_url?: string | null
+          graduacion?: number | null
           id?: string
           isla: string
           isla_normalizada?: string | null
@@ -544,8 +551,11 @@ export type Database = {
           notas_internas?: string | null
           precio_carta?: number | null
           precio_coste?: number | null
+          puntuacion_parker?: number | null
           stock_actual?: number | null
           subtipo?: string | null
+          temp_servicio_max?: number | null
+          temp_servicio_min?: number | null
           tipo: string
           updated_at?: string | null
           uvas?: string | null
@@ -554,6 +564,7 @@ export type Database = {
           anada?: number | null
           bodega_id?: string | null
           created_at?: string | null
+          crianza?: string | null
           descripcion_corta?: string | null
           descripcion_en?: string | null
           descripcion_larga?: Json | null
@@ -561,6 +572,7 @@ export type Database = {
           estado?: string | null
           formato_ml?: number | null
           foto_url?: string | null
+          graduacion?: number | null
           id?: string
           isla?: string
           isla_normalizada?: string | null
@@ -569,8 +581,11 @@ export type Database = {
           notas_internas?: string | null
           precio_carta?: number | null
           precio_coste?: number | null
+          puntuacion_parker?: number | null
           stock_actual?: number | null
           subtipo?: string | null
+          temp_servicio_max?: number | null
+          temp_servicio_min?: number | null
           tipo?: string
           updated_at?: string | null
           uvas?: string | null

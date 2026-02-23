@@ -14,11 +14,12 @@ interface Props {
   priceHistory: any[];
   stockRefreshKey: number;
   onFotoUpdated: (url: string) => void;
+  onWineDataUpdated?: () => void;
 }
 
 export default function WineGestionTab({
   wine, supaWine, precioCoste, setPrecioCoste, precioCarta,
-  marginTarget, priceHistory, stockRefreshKey, onFotoUpdated,
+  marginTarget, priceHistory, stockRefreshKey, onFotoUpdated, onWineDataUpdated,
 }: Props) {
   const [showHistory, setShowHistory] = useState(false);
   const marginReal = calcMarginReal(precioCarta || null, precioCoste || null);
@@ -94,6 +95,7 @@ export default function WineGestionTab({
           vinoAnada={wine?.anada ?? null}
           fotoUrl={supaWine.foto_url}
           onFotoUpdated={onFotoUpdated}
+          onWineDataUpdated={onWineDataUpdated}
         />
       )}
 

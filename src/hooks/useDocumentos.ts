@@ -18,10 +18,12 @@ export interface Documento {
 }
 
 export const DOCUMENT_TYPES = [
+  { value: "ficha_tecnica", label: "Ficha técnica" },
   { value: "factura", label: "Factura" },
+  { value: "tarifa_precios", label: "Tarifa de precios" },
   { value: "lista_precios", label: "Lista de precios" },
   { value: "catalogo", label: "Catálogo" },
-  { value: "ficha_tecnica", label: "Ficha técnica" },
+  { value: "documento_general", label: "Documento general" },
   { value: "email", label: "Email" },
   { value: "otro", label: "Otro" },
 ] as const;
