@@ -52,16 +52,23 @@ export default function WineDetail() {
 
   const fetchSupaWine = useCallback(() => {
     if (!wine) return;
-    supabase
+    let query = supabase
       .from("vinos")
       .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url, formato_ml, subtipo, graduacion, temp_servicio_min, temp_servicio_max, crianza, puntuacion_parker")
-      .eq("nombre", wine.nombre)
+      .eq("nombre", wine.nombre);
+
+    // Narrow by añada when available for precision
+    if (wine.anada != null) {
+      query = query.eq("anada", wine.anada);
+    }
+
+    query
       .limit(1)
       .single()
       .then(({ data }) => {
         if (data) setSupaWine(data as any);
       });
-  }, [wine?.nombre]);
+  }, [wine?.nombre, wine?.anada]);
 
   useEffect(() => {
     fetchSupaWine();

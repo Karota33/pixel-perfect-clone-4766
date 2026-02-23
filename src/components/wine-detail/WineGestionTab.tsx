@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import StockHistorySection from "./StockHistorySection";
 import WineDocumentsSection from "./WineDocumentsSection";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Props {
   wine: any;
@@ -83,12 +84,17 @@ export default function WineGestionTab({
       </div>
 
       {/* Stock History */}
-      {supaWine && (
+      {supaWine ? (
         <StockHistorySection vinoId={supaWine.id} refreshKey={stockRefreshKey} />
+      ) : (
+        <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-10 w-full" />
+        </div>
       )}
 
       {/* Documents */}
-      {supaWine && (
+      {supaWine ? (
         <WineDocumentsSection
           vinoId={supaWine.id}
           vinoNombre={wine?.nombre || ""}
@@ -97,6 +103,11 @@ export default function WineGestionTab({
           onFotoUpdated={onFotoUpdated}
           onWineDataUpdated={onWineDataUpdated}
         />
+      ) : (
+        <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+          <Skeleton className="h-4 w-1/4" />
+          <Skeleton className="h-16 w-full" />
+        </div>
       )}
 
       {/* Price History */}
