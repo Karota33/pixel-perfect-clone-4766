@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, ExternalLink, Plus, Save, Loader2, Camera, ImagePlus } from "lucide-react";
+import { FileText, ExternalLink, Plus, Save, Loader2, Camera, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { DOCUMENT_TYPES } from "@/hooks/useDocumentos";
 import { useBodegas } from "@/hooks/useBodegas";
@@ -17,6 +17,7 @@ interface DocRow {
   tipo: string;
   fecha_documento: string | null;
   storage_path: string | null;
+  mime_type: string | null;
 }
 
 const typeLabels: Record<string, string> = {
@@ -30,11 +31,13 @@ const typeLabels: Record<string, string> = {
 
 interface Props {
   vinoId: string;
+  vinoNombre: string;
+  vinoAnada: number | null;
   fotoUrl: string | null;
   onFotoUpdated: (url: string) => void;
 }
 
-export default function WineDocumentsSection({ vinoId, fotoUrl, onFotoUpdated }: Props) {
+export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fotoUrl, onFotoUpdated }: Props) {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const { bodegas } = useBodegas();
@@ -52,10 +55,14 @@ export default function WineDocumentsSection({ vinoId, fotoUrl, onFotoUpdated }:
   const cameraRef = useRef<HTMLInputElement>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  // PDF viewer state
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfDocName, setPdfDocName] = useState("");
+
   const fetchDocs = () => {
     supabase
       .from("documentos")
-      .select("id, nombre, tipo, fecha_documento, storage_path")
+      .select("id, nombre, tipo, fecha_documento, storage_path, mime_type")
       .eq("vino_id", vinoId)
       .order("fecha_documento", { ascending: false })
       .then(({ data }) => {
@@ -67,10 +74,24 @@ export default function WineDocumentsSection({ vinoId, fotoUrl, onFotoUpdated }:
     fetchDocs();
   }, [vinoId]);
 
-  const openDoc = async (path: string | null) => {
-    if (!path) return;
-    const { data } = await supabase.storage.from("documentos").createSignedUrl(path, 3600);
-    if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+  const openDoc = async (doc: DocRow) => {
+    if (!doc.storage_path) return;
+    const { data } = await supabase.storage.from("documentos").createSignedUrl(doc.storage_path, 3600);
+    if (!data?.signedUrl) return;
+
+    const isPdf = doc.mime_type === "application/pdf" || doc.storage_path.toLowerCase().endsWith(".pdf");
+    if (isPdf) {
+      setPdfUrl(data.signedUrl);
+      setPdfDocName(doc.nombre);
+    } else {
+      window.open(data.signedUrl, "_blank");
+    }
+  };
+
+  const generateAutoName = (tipo: string, ext: string) => {
+    const tipoLabel = typeLabels[tipo] || tipo;
+    const anadaPart = vinoAnada ? ` — ${vinoAnada}` : "";
+    return `${tipoLabel} — ${vinoNombre}${anadaPart}.${ext}`;
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,8 +102,19 @@ export default function WineDocumentsSection({ vinoId, fotoUrl, onFotoUpdated }:
       return;
     }
     setUploadFile(file);
-    setUploadNombre(file.name);
+    const ext = file.name.split(".").pop() || "";
+    setUploadNombre(generateAutoName("ficha_tecnica", ext));
+    setUploadTipo("ficha_tecnica");
     setShowUpload(true);
+  };
+
+  // Regenerate name when tipo changes
+  const handleTipoChange = (newTipo: string) => {
+    setUploadTipo(newTipo);
+    if (uploadFile) {
+      const ext = uploadFile.name.split(".").pop() || "";
+      setUploadNombre(generateAutoName(newTipo, ext));
+    }
   };
 
   const handleUpload = async () => {
@@ -218,7 +250,7 @@ export default function WineDocumentsSection({ vinoId, fotoUrl, onFotoUpdated }:
               <div
                 key={doc.id}
                 className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-accent/30 transition-colors cursor-pointer"
-                onClick={() => openDoc(doc.storage_path)}
+                onClick={() => openDoc(doc)}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -245,16 +277,16 @@ export default function WineDocumentsSection({ vinoId, fotoUrl, onFotoUpdated }:
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Nombre</label>
-              <input type="text" value={uploadNombre} onChange={(e) => setUploadNombre(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
-            </div>
-            <div>
               <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
-              <select value={uploadTipo} onChange={(e) => setUploadTipo(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
+              <select value={uploadTipo} onChange={(e) => handleTipoChange(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20">
                 {DOCUMENT_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Nombre</label>
+              <input type="text" value={uploadNombre} onChange={(e) => setUploadNombre(e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Bodega (opcional)</label>
@@ -272,6 +304,28 @@ export default function WineDocumentsSection({ vinoId, fotoUrl, onFotoUpdated }:
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* PDF Viewer Modal */}
+      {pdfUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="relative w-[90vw] h-[90vh] bg-background rounded-xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+              <h3 className="text-sm font-semibold text-foreground truncate">{pdfDocName}</h3>
+              <button
+                onClick={() => setPdfUrl(null)}
+                className="p-1.5 rounded-lg hover:bg-accent transition-colors"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
+            <iframe
+              src={pdfUrl}
+              className="flex-1 w-full"
+              title="Visor PDF"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
