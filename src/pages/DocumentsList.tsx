@@ -54,7 +54,6 @@ export default function DocumentsList() {
   const [uploadTipo, setUploadTipo] = useState("otro");
   const [uploadBodegaId, setUploadBodegaId] = useState("");
   const [uploadFecha, setUploadFecha] = useState("");
-  const [uploadEtiquetas, setUploadEtiquetas] = useState("");
   const [uploadNotas, setUploadNotas] = useState("");
   const [uploading, setUploading] = useState(false);
   const [showNewBodega, setShowNewBodega] = useState(false);
@@ -124,8 +123,8 @@ export default function DocumentsList() {
   };
 
   const handleUpload = async () => {
-    if (!uploadFile || !uploadBodegaId) {
-      toast.error("Selecciona una bodega");
+    if (!uploadFile) {
+      toast.error("Selecciona un archivo");
       return;
     }
 
@@ -140,20 +139,14 @@ export default function DocumentsList() {
 
       if (storageError) throw storageError;
 
-      const etiquetas = uploadEtiquetas
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-
       const { error: dbError } = await supabase.from("documentos").insert({
         nombre: uploadNombre,
         tipo: uploadTipo,
-        bodega_id: uploadBodegaId,
+        bodega_id: uploadBodegaId || null,
         fecha_documento: uploadFecha || null,
         tamano_bytes: uploadFile.size,
         storage_path: path,
         mime_type: uploadFile.type,
-        etiquetas: etiquetas.length > 0 ? etiquetas : null,
         notas: uploadNotas || null,
       });
 
@@ -207,7 +200,6 @@ export default function DocumentsList() {
     setUploadTipo("otro");
     setUploadBodegaId("");
     setUploadFecha("");
-    setUploadEtiquetas("");
     setUploadNotas("");
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -347,7 +339,7 @@ export default function DocumentsList() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">
-                Bodega / Proveedor *
+                Bodega / Proveedor
               </label>
               <div className="flex gap-2">
                 <select
@@ -416,18 +408,6 @@ export default function DocumentsList() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">
-                Etiquetas (separadas por comas)
-              </label>
-              <input
-                type="text"
-                value={uploadEtiquetas}
-                onChange={(e) => setUploadEtiquetas(e.target.value)}
-                placeholder="tarifa, 2025, tinto..."
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
                 Notas
               </label>
               <textarea
@@ -439,7 +419,7 @@ export default function DocumentsList() {
             </div>
             <button
               onClick={handleUpload}
-              disabled={uploading || !uploadBodegaId}
+              disabled={uploading}
               className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
