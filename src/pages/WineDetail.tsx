@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import WineDescriptionSection from "@/components/wine-detail/WineDescriptionSection";
+import { useBodegas } from "@/hooks/useBodegas";
 
 export default function WineDetail() {
   const { id } = useParams<{ id: string }>();
@@ -23,7 +24,8 @@ export default function WineDetail() {
   const [precioCarta, setPrecioCarta] = useState(wine?.precio_carta ?? 0);
   const [precioCoste, setPrecioCoste] = useState(wine?.precio_coste ?? 0);
   const [showHistory, setShowHistory] = useState(false);
-
+  const { bodegas } = useBodegas();
+  const [selectedBodegaId, setSelectedBodegaId] = useState<string | null>(null);
   // Supabase wine record for descriptions
   const [supaWine, setSupaWine] = useState<{
     id: string;
@@ -47,6 +49,10 @@ export default function WineDetail() {
         if (data) setSupaWine(data);
       });
   }, [wine?.nombre]);
+
+  useEffect(() => {
+    if (supaWine) setSelectedBodegaId(supaWine.bodega_id);
+  }, [supaWine]);
 
   useEffect(() => {
     if (wine) {
@@ -107,11 +113,33 @@ export default function WineDetail() {
         {/* Name */}
         <div className="space-y-1">
           <h2 className="font-display text-2xl font-bold text-foreground leading-tight">
-            {wine.nombre}
+          {wine.nombre}
           </h2>
-          {wine.bodega && (
-            <p className="text-sm text-primary font-medium">{wine.bodega}</p>
-          )}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Bodega</label>
+            <select
+              value={selectedBodegaId || ""}
+              onChange={async (e) => {
+                const newId = e.target.value || null;
+                setSelectedBodegaId(newId);
+                if (supaWine) {
+                  await supabase
+                    .from("vinos")
+                    .update({ bodega_id: newId })
+                    .eq("id", supaWine.id);
+                  toast.success("Bodega actualizada");
+                }
+              }}
+              className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+            >
+              <option value="">Sin bodega</option>
+              {bodegas.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Info Grid */}
