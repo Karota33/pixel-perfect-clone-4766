@@ -95,7 +95,7 @@ export default function NewWineDrawer({ open, onOpenChange, onCreated }: Props) 
         .select("id_local")
         .order("id_local", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
       const nextIdLocal = (maxRow?.id_local ?? 0) + 1;
 
       const { error } = await supabase.from("vinos").insert({
