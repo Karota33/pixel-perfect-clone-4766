@@ -29,6 +29,7 @@ export type Database = {
           isla: string | null
           nombre: string
           notas: string | null
+          tipo_entidad: string
           valoracion: number | null
           web: string | null
         }
@@ -46,6 +47,7 @@ export type Database = {
           isla?: string | null
           nombre: string
           notas?: string | null
+          tipo_entidad?: string
           valoracion?: number | null
           web?: string | null
         }
@@ -63,6 +65,7 @@ export type Database = {
           isla?: string | null
           nombre?: string
           notas?: string | null
+          tipo_entidad?: string
           valoracion?: number | null
           web?: string | null
         }
