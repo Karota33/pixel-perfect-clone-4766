@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import WineDescriptionSection from "@/components/wine-detail/WineDescriptionSection";
 import WineCompletenessBar from "@/components/wine-detail/WineCompletenessBar";
 import WineMaridajesSection from "@/components/wine-detail/WineMaridajesSection";
+import WineDocumentsSection from "@/components/wine-detail/WineDocumentsSection";
 import { useBodegas } from "@/hooks/useBodegas";
 
 export default function WineDetail() {
@@ -263,6 +264,19 @@ export default function WineDetail() {
                       ? `${(marginReal - marginTarget) > 0 ? "+" : ""}${(marginReal - marginTarget).toFixed(1)}%`
                       : "—"}
                   </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Save */}
+          <button
+            onClick={handleSave}
+            className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
+          >
+            <Save className="w-4 h-4" />
+            Guardar cambios
+          </button>
         </div>
 
         {/* Wine Description Section */}
@@ -280,7 +294,7 @@ export default function WineDetail() {
             initialLarga={supaWine.descripcion_larga || {}}
             initialNotas={supaWine.notas_internas || ""}
           />
-         )}
+        )}
 
         {/* Maridajes Section */}
         {supaWine && (
@@ -291,19 +305,9 @@ export default function WineDetail() {
             uvas={wine.uvas || null}
           />
         )}
-              </div>
-            </div>
-          )}
 
-          {/* Save */}
-          <button
-            onClick={handleSave}
-            className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
-          >
-            <Save className="w-4 h-4" />
-            Guardar cambios
-          </button>
-        </div>
+        {/* Documents Section */}
+        {supaWine && <WineDocumentsSection vinoId={supaWine.id} />}
 
         {/* Price History */}
         {priceHistory.length > 0 && (

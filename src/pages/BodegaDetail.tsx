@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Save, ExternalLink, Phone, Mail, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import StarRating from "@/components/StarRating";
+import BodegaDocumentsSection from "@/components/bodega-detail/BodegaDocumentsSection";
 import { calcMarginReal, getMarginStatus, getMarginColor } from "@/lib/margins";
 import { useMarginSettings } from "@/hooks/useMarginSettings";
 
@@ -314,6 +315,9 @@ export default function BodegaDetail() {
             </div>
           </div>
         )}
+
+        {/* Documents Section */}
+        {id && <BodegaDocumentsSection bodegaId={id} />}
 
         {/* Save */}
         <button

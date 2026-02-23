@@ -111,11 +111,11 @@ export function parseCSV(
 
   // Find name column
   const nameIdx = headers.findIndex((h) =>
-    ["nombre", "name", "vino", "wine", "producto", "product", "referencia", "ref"].includes(h)
+    ["nombre", "name", "vino", "wine", "producto", "product", "referencia", "ref", "nombre del vino"].includes(h)
   );
   // Find price column
   const priceIdx = headers.findIndex((h) =>
-    ["precio", "price", "coste", "cost", "pvp", "precio_coste", "precio_ud", "importe"].includes(h)
+    ["precio", "price", "coste", "cost", "pvp", "precio_coste", "precio_ud", "importe", "precio (€/ud)", "precio (eur)", "precio €", "p.v.p."].includes(h)
   );
 
   if (nameIdx === -1 || priceIdx === -1) return [];
