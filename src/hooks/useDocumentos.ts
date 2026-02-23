@@ -5,7 +5,8 @@ export interface Documento {
   id: string;
   nombre: string;
   tipo: string;
-  bodega_id: string;
+  bodega_id: string | null;
+  vino_id: string | null;
   fecha_documento: string | null;
   tamano_bytes: number | null;
   storage_path: string | null;

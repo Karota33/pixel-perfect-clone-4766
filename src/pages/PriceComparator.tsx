@@ -2,8 +2,14 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { parseCSV, fuzzyMatchWines, FuzzyMatch } from "@/lib/fuzzyMatch";
-import { ArrowLeft, Upload, Check, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Upload, Check, AlertTriangle, Plus } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function PriceComparator() {
   const navigate = useNavigate();
@@ -13,6 +19,10 @@ export default function PriceComparator() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [addingNew, setAddingNew] = useState<FuzzyMatch | null>(null);
+  const [newWineType, setNewWineType] = useState("tinto");
+  const [newWineIsla, setNewWineIsla] = useState("Tenerife");
+  const [savingNew, setSavingNew] = useState(false);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -27,7 +37,6 @@ export default function PriceComparator() {
       return;
     }
 
-    // Fetch all wines from Supabase
     const { data: wines } = await supabase
       .from("vinos")
       .select("id, nombre, precio_coste");
@@ -75,10 +84,48 @@ export default function PriceComparator() {
         .from("vinos")
         .update({ precio_coste: row.csvPrice })
         .eq("id", row.matchedId);
-      if (!error) updated++;
+      if (!error) {
+        updated++;
+        // Record in price_history
+        await supabase.from("price_history").insert({
+          vino_id: row.matchedId,
+          campo: "precio_coste",
+          valor_anterior: row.currentCost,
+          valor_nuevo: row.csvPrice,
+          motivo: "importacion_tarifa",
+        });
+      }
     }
     setSaving(false);
     toast.success(`${updated} precio${updated !== 1 ? "s" : ""} actualizado${updated !== 1 ? "s" : ""}`);
+  };
+
+  const handleAddNewWine = async () => {
+    if (!addingNew) return;
+    setSavingNew(true);
+    try {
+      const { error } = await supabase.from("vinos").insert({
+        nombre: addingNew.csvName,
+        tipo: newWineType,
+        isla: newWineIsla,
+        precio_coste: addingNew.csvPrice,
+      });
+      if (error) throw error;
+      toast.success(`"${addingNew.csvName}" añadido a la carta`);
+      setUnmatched((prev) => prev.filter((u) => u !== addingNew));
+      setAddingNew(null);
+    } catch (e: any) {
+      toast.error(e.message || "Error");
+    } finally {
+      setSavingNew(false);
+    }
+  };
+
+  const getDiffIcon = (diff: number | null) => {
+    if (diff === null) return "";
+    if (diff > 0) return "🔴";
+    if (diff < 0) return "🟢";
+    return "";
   };
 
   return (
@@ -105,16 +152,16 @@ export default function PriceComparator() {
         {!loaded ? (
           <div className="text-center py-16 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Sube un CSV con columnas <strong>nombre</strong> y{" "}
+              Sube un CSV o Excel con columnas <strong>nombre</strong> y{" "}
               <strong>precio</strong> para comparar con los vinos en carta.
             </p>
             <label className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity cursor-pointer">
               <Upload className="w-4 h-4" />
-              Seleccionar CSV
+              Seleccionar archivo
               <input
                 ref={fileRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 className="hidden"
                 onChange={handleFile}
               />
@@ -206,7 +253,7 @@ export default function PriceComparator() {
                               }`}
                             >
                               {diff !== null
-                                ? `${diff > 0 ? "+" : ""}${diff.toFixed(2)}€`
+                                ? `${getDiffIcon(diff)} ${diff > 0 ? "+" : ""}${diff.toFixed(2)}€`
                                 : "—"}
                             </td>
                           </tr>
@@ -234,9 +281,9 @@ export default function PriceComparator() {
             {unmatched.length > 0 && (
               <div className="bg-card rounded-xl border border-border overflow-hidden">
                 <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-[hsl(var(--margin-warn))]" />
+                  <span className="text-base">🆕</span>
                   <h2 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                    Sin coincidencia ({unmatched.length})
+                    No encontrados en carta ({unmatched.length})
                   </h2>
                 </div>
                 <div className="divide-y divide-border">
@@ -245,12 +292,27 @@ export default function PriceComparator() {
                       key={i}
                       className="px-4 py-2.5 flex items-center justify-between"
                     >
-                      <span className="text-sm text-foreground truncate">
-                        {row.csvName}
-                      </span>
-                      <span className="text-sm font-medium text-muted-foreground shrink-0">
-                        {row.csvPrice.toFixed(2)}€
-                      </span>
+                      <div className="min-w-0">
+                        <span className="text-sm text-foreground truncate block">
+                          {row.csvName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {row.csvPrice.toFixed(2)}€
+                        </span>
+                        <button
+                          onClick={() => {
+                            setAddingNew(row);
+                            setNewWineType("tinto");
+                            setNewWineIsla("Tenerife");
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-secondary text-secondary-foreground text-xs font-medium rounded-lg hover:bg-accent transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Añadir
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -261,10 +323,10 @@ export default function PriceComparator() {
             <div className="text-center">
               <label className="inline-flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors cursor-pointer">
                 <Upload className="w-4 h-4" />
-                Cargar otro CSV
+                Cargar otro archivo
                 <input
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   className="hidden"
                   onChange={handleFile}
                 />
@@ -273,6 +335,66 @@ export default function PriceComparator() {
           </>
         )}
       </main>
+
+      {/* Add new wine dialog */}
+      <Dialog open={!!addingNew} onOpenChange={(open) => !open && setAddingNew(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Añadir a carta</DialogTitle>
+          </DialogHeader>
+          {addingNew && (
+            <div className="space-y-4 pt-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Nombre</label>
+                <p className="text-sm font-medium text-foreground">{addingNew.csvName}</p>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Precio coste</label>
+                <p className="text-sm font-medium text-foreground">{addingNew.csvPrice.toFixed(2)}€</p>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
+                <select
+                  value={newWineType}
+                  onChange={(e) => setNewWineType(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+                >
+                  <option value="tinto">Tinto</option>
+                  <option value="blanco">Blanco</option>
+                  <option value="rosado">Rosado</option>
+                  <option value="espumoso">Espumoso</option>
+                  <option value="dulce">Dulce</option>
+                  <option value="naranja">Naranja</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Isla</label>
+                <select
+                  value={newWineIsla}
+                  onChange={(e) => setNewWineIsla(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+                >
+                  <option value="Tenerife">Tenerife</option>
+                  <option value="Gran Canaria">Gran Canaria</option>
+                  <option value="La Palma">La Palma</option>
+                  <option value="Lanzarote">Lanzarote</option>
+                  <option value="El Hierro">El Hierro</option>
+                  <option value="La Gomera">La Gomera</option>
+                  <option value="Fuerteventura">Fuerteventura</option>
+                </select>
+              </div>
+              <button
+                onClick={handleAddNewWine}
+                disabled={savingNew}
+                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                <Plus className="w-4 h-4" />
+                {savingNew ? "Añadiendo..." : "Añadir a carta"}
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export type Database = {
       }
       documentos: {
         Row: {
-          bodega_id: string
+          bodega_id: string | null
           created_at: string | null
           etiquetas: string[] | null
           fecha_documento: string | null
@@ -82,9 +82,10 @@ export type Database = {
           storage_path: string | null
           tamano_bytes: number | null
           tipo: string
+          vino_id: string | null
         }
         Insert: {
-          bodega_id: string
+          bodega_id?: string | null
           created_at?: string | null
           etiquetas?: string[] | null
           fecha_documento?: string | null
@@ -96,9 +97,10 @@ export type Database = {
           storage_path?: string | null
           tamano_bytes?: number | null
           tipo: string
+          vino_id?: string | null
         }
         Update: {
-          bodega_id?: string
+          bodega_id?: string | null
           created_at?: string | null
           etiquetas?: string[] | null
           fecha_documento?: string | null
@@ -110,6 +112,7 @@ export type Database = {
           storage_path?: string | null
           tamano_bytes?: number | null
           tipo?: string
+          vino_id?: string | null
         }
         Relationships: [
           {
@@ -117,6 +120,13 @@ export type Database = {
             columns: ["bodega_id"]
             isOneToOne: false
             referencedRelation: "bodegas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_vino_id_fkey"
+            columns: ["vino_id"]
+            isOneToOne: false
+            referencedRelation: "vinos"
             referencedColumns: ["id"]
           },
         ]
