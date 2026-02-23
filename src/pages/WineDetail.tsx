@@ -321,6 +321,8 @@ export default function WineDetail() {
         {supaWine && (
           <WineDocumentsSection
             vinoId={supaWine.id}
+            vinoNombre={wine?.nombre || ""}
+            vinoAnada={wine?.anada ?? null}
             fotoUrl={supaWine.foto_url}
             onFotoUpdated={(url) => setSupaWine((prev) => prev ? { ...prev, foto_url: url } : prev)}
           />
