@@ -13,6 +13,12 @@ serve(async (req) => {
   }
 
   try {
+    const body = await req.json();
+    console.log("[extract-document-data] Received body:", JSON.stringify(body));
+
+    const { storage_path } = body;
+    if (!storage_path) throw new Error("storage_path required");
+
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not configured");
 
@@ -20,17 +26,20 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { storage_path } = await req.json();
-    if (!storage_path) throw new Error("storage_path required");
+    console.log("[extract-document-data] Downloading PDF from storage:", storage_path);
 
-    // Download the PDF from storage
     const { data: fileData, error: downloadError } = await supabase.storage
       .from("documentos")
       .download(storage_path);
 
-    if (downloadError || !fileData) throw new Error("Could not download file");
+    if (downloadError || !fileData) {
+      console.error("[extract-document-data] Download error:", downloadError);
+      throw new Error("Could not download file: " + (downloadError?.message || "no data"));
+    }
 
-    // Convert to base64 (chunk to avoid stack overflow)
+    console.log("[extract-document-data] PDF downloaded, size:", fileData.size, "bytes");
+
+    // Convert to base64 in chunks to avoid stack overflow
     const arrayBuffer = await fileData.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     let binary = "";
@@ -40,7 +49,9 @@ serve(async (req) => {
     }
     const base64 = btoa(binary);
 
-    // Call Anthropic with the PDF
+    console.log("[extract-document-data] Base64 encoded, length:", base64.length);
+    console.log("[extract-document-data] Calling Anthropic API...");
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -92,15 +103,16 @@ Si un campo no aparece en el documento, usa null. Responde SOLO con el JSON vál
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Anthropic error:", response.status, errText);
+      console.error("[extract-document-data] Anthropic error:", response.status, errText);
       return new Response(
-        JSON.stringify({ error: `Anthropic API error: ${response.status}` }),
+        JSON.stringify({ error: `Error de IA: ${response.status} - ${errText.substring(0, 200)}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
     const text = data.content?.[0]?.text || "";
+    console.log("[extract-document-data] Anthropic raw response text:", text.substring(0, 500));
 
     let result;
     try {
@@ -110,17 +122,20 @@ Si un campo no aparece en el documento, usa null. Responde SOLO con el JSON vál
       if (match) {
         result = JSON.parse(match[0]);
       } else {
-        throw new Error("Could not parse JSON from AI response");
+        console.error("[extract-document-data] Could not parse JSON from:", text);
+        throw new Error("No se pudo interpretar la respuesta de la IA");
       }
     }
+
+    console.log("[extract-document-data] Parsed result:", JSON.stringify(result));
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("Error:", e);
+    console.error("[extract-document-data] Error:", e);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      JSON.stringify({ error: e instanceof Error ? e.message : "Error desconocido" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
