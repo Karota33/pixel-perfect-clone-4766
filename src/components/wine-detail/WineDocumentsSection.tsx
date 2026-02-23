@@ -33,8 +33,6 @@ const typeLabels: Record<string, string> = {
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  nombre: "Nombre",
-  anada: "Añada",
   do: "D.O.",
   isla: "Isla",
   uvas: "Variedades",
@@ -238,8 +236,6 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
 
       // Map extracted data to DB fields
       const fieldMap: Record<string, { extractedKey: string; label: string }> = {
-        nombre: { extractedKey: "nombre", label: "Nombre" },
-        anada: { extractedKey: "anada", label: "Añada" },
         do: { extractedKey: "do", label: "D.O." },
         isla: { extractedKey: "isla", label: "Isla" },
         uvas: { extractedKey: "uvas", label: "Variedades" },

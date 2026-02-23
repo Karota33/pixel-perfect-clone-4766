@@ -514,6 +514,7 @@ export type Database = {
           foto_url: string | null
           graduacion: number | null
           id: string
+          id_local: number | null
           isla: string
           isla_normalizada: string | null
           margen_objetivo: number | null
@@ -544,6 +545,7 @@ export type Database = {
           foto_url?: string | null
           graduacion?: number | null
           id?: string
+          id_local?: number | null
           isla: string
           isla_normalizada?: string | null
           margen_objetivo?: number | null
@@ -574,6 +576,7 @@ export type Database = {
           foto_url?: string | null
           graduacion?: number | null
           id?: string
+          id_local?: number | null
           isla?: string
           isla_normalizada?: string | null
           margen_objetivo?: number | null
