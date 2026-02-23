@@ -183,11 +183,10 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
       if (dbError) throw dbError;
       toast.success("Documento adjuntado");
 
-      // If it's a ficha_tecnica PDF, trigger extraction
-      if (finalTipo === "ficha_tecnica" && ext === "pdf") {
-        await triggerExtraction(path);
-      }
-
+      // Close dialog and reset form BEFORE triggering extraction
+      const savedPath = path;
+      const shouldExtract = finalTipo === "ficha_tecnica" && ext === "pdf";
+      
       setShowUpload(false);
       setUploadFile(null);
       setUploadNombre("");
@@ -195,6 +194,11 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
       setUploadBodegaId("");
       if (fileRef.current) fileRef.current.value = "";
       fetchDocs();
+
+      // Trigger extraction AFTER closing the upload dialog
+      if (shouldExtract) {
+        triggerExtraction(savedPath);
+      }
     } catch (err: any) {
       toast.error(err.message || "Error al subir");
     } finally {
@@ -205,11 +209,14 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
   const triggerExtraction = async (storagePath: string) => {
     setExtracting(true);
     try {
+      console.log("[triggerExtraction] Invoking extract-document-data with path:", storagePath);
       const { data, error } = await supabase.functions.invoke("extract-document-data", {
         body: { storage_path: storagePath },
       });
-      if (error) throw error;
-      if (!data || typeof data !== "object") throw new Error("No data returned");
+      console.log("[triggerExtraction] Response - data:", data, "error:", error);
+      if (error) throw new Error(error.message || "Error al llamar a la función de extracción");
+      if (!data || typeof data !== "object") throw new Error("La función no devolvió datos válidos");
+      if (data.error) throw new Error(data.error);
 
       // Get current wine data
       const { data: currentWine } = await supabase
@@ -341,7 +348,7 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
       {extracting && (
         <div className="bg-card rounded-xl border border-primary/30 p-4 flex items-center gap-3 animate-pulse">
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
-          <span className="text-sm font-medium text-foreground">Analizando ficha técnica…</span>
+          <span className="text-sm font-medium text-foreground">Analizando PDF con IA…</span>
         </div>
       )}
 
