@@ -509,6 +509,7 @@ export type Database = {
           descripcion_larga: Json | null
           do: string | null
           estado: string | null
+          formato_ml: number | null
           foto_url: string | null
           id: string
           isla: string
@@ -532,6 +533,7 @@ export type Database = {
           descripcion_larga?: Json | null
           do?: string | null
           estado?: string | null
+          formato_ml?: number | null
           foto_url?: string | null
           id?: string
           isla: string
@@ -555,6 +557,7 @@ export type Database = {
           descripcion_larga?: Json | null
           do?: string | null
           estado?: string | null
+          formato_ml?: number | null
           foto_url?: string | null
           id?: string
           isla?: string

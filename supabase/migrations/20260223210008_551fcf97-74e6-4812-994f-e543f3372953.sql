@@ -1,0 +1,1 @@
+ALTER TABLE public.vinos ADD COLUMN formato_ml integer DEFAULT 750;
