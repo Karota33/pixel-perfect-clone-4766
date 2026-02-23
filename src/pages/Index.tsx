@@ -6,7 +6,7 @@ import { calcMarginReal, getMarginStatus } from "@/lib/margins";
 import WineCard from "@/components/WineCard";
 import FilterChips from "@/components/FilterChips";
 import SearchBar from "@/components/SearchBar";
-import { Wine as WineIcon, Settings } from "lucide-react";
+import { Wine as WineIcon, Settings, Warehouse } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const TYPE_OPTIONS = ["Blanco", "Tinto", "Rosado", "Espumoso", "Dulce"];
@@ -56,6 +56,12 @@ export default function Index() {
               <span className="text-xs text-muted-foreground font-medium">
                 {filtered.length} vino{filtered.length !== 1 ? "s" : ""}
               </span>
+              <button
+                onClick={() => navigate("/bodegas")}
+                className="p-2 rounded-lg hover:bg-accent transition-colors"
+              >
+                <Warehouse className="w-4 h-4 text-muted-foreground" />
+              </button>
               <button
                 onClick={() => navigate("/settings")}
                 className="p-2 -mr-2 rounded-lg hover:bg-accent transition-colors"
