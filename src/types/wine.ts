@@ -10,6 +10,7 @@ export interface Wine {
   stock: number | null;
   bodega: string | null;
   do: string | null;
+  descripcion_corta?: string | null;
 }
 
 export type RawWine = Omit<Wine, "id" | "bodega" | "do">;

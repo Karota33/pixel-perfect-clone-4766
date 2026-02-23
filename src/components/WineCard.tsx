@@ -1,4 +1,5 @@
 import { Wine, getCanonicalIsland, getTypeLabel } from "@/types/wine";
+import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { calcMarginReal, getMarginStatus, getMarginColor } from "@/lib/margins";
 import { useMarginSettings } from "@/hooks/useMarginSettings";
@@ -39,6 +40,9 @@ export default function WineCard({ wine }: WineCardProps) {
             <h3 className="font-display text-base font-semibold text-foreground truncate">
               {wine.nombre}
             </h3>
+            {wine.descripcion_corta && (
+              <Sparkles className="w-3.5 h-3.5 shrink-0 text-primary" />
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
