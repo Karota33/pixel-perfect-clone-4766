@@ -7,6 +7,8 @@ import { calcMarginReal, calcPvpSugerido, getMarginStatus, getMarginColor } from
 import { ArrowLeft, Minus, Plus, Save, ChevronDown, ChevronUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import WineDescriptionSection from "@/components/wine-detail/WineDescriptionSection";
 
 export default function WineDetail() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +23,30 @@ export default function WineDetail() {
   const [precioCarta, setPrecioCarta] = useState(wine?.precio_carta ?? 0);
   const [precioCoste, setPrecioCoste] = useState(wine?.precio_coste ?? 0);
   const [showHistory, setShowHistory] = useState(false);
+
+  // Supabase wine record for descriptions
+  const [supaWine, setSupaWine] = useState<{
+    id: string;
+    descripcion_corta: string | null;
+    descripcion_larga: any;
+    notas_internas: string | null;
+    bodega_id: string | null;
+    do: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!wine) return;
+    // Find wine in Supabase by nombre
+    supabase
+      .from("vinos")
+      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do")
+      .eq("nombre", wine.nombre)
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data) setSupaWine(data);
+      });
+  }, [wine?.nombre]);
 
   useEffect(() => {
     if (wine) {
@@ -194,7 +220,24 @@ export default function WineDetail() {
                       ? `${(marginReal - marginTarget) > 0 ? "+" : ""}${(marginReal - marginTarget).toFixed(1)}%`
                       : "—"}
                   </p>
-                </div>
+        </div>
+
+        {/* Wine Description Section */}
+        {supaWine && (
+          <WineDescriptionSection
+            vinoId={supaWine.id}
+            nombre={wine.nombre}
+            tipo={wine.tipo}
+            isla={wine.isla}
+            uvas={wine.uvas || null}
+            anada={wine.anada}
+            bodega={wine.bodega}
+            dop={supaWine.do || wine.do}
+            initialCorta={supaWine.descripcion_corta || ""}
+            initialLarga={supaWine.descripcion_larga || {}}
+            initialNotas={supaWine.notas_internas || ""}
+          />
+        )}
               </div>
             </div>
           )}
