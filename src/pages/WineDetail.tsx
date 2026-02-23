@@ -64,13 +64,13 @@ export default function WineDetail() {
       query = query.eq("anada", wine.anada);
     }
 
-    const { data, error } = await query.limit(1).maybeSingle();
-    console.log("[fetchSupaWine] result:", data ? data.id : "null", "error:", error?.message);
+    const { data, error } = await query.limit(1);
+    console.log("[fetchSupaWine] result:", data?.length, "first:", data?.[0]?.id, "error:", error?.message);
 
-    if (data) {
-      setSupaWine(data as any);
-    } else if (error) {
-      console.error("[fetchSupaWine] error:", error);
+    if (error) {
+      console.error("[fetchSupaWine] error:", error.code, error.message);
+    } else if (data && data.length > 0) {
+      setSupaWine(data[0] as any);
     }
   }, [wine?.nombre, wine?.anada]);
 
