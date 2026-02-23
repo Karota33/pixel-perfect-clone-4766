@@ -12,6 +12,8 @@ export interface Wine {
   do: string | null;
 }
 
+export type RawWine = Omit<Wine, "id" | "bodega" | "do">;
+
 export const WINE_TYPES = ["blanco", "tinto", "rosado", "espumoso", "dulce", "sidra"] as const;
 
 export const ISLANDS = [
@@ -24,15 +26,14 @@ export const ISLANDS = [
   "Fuerteventura",
 ] as const;
 
-// Map island field values to canonical island names
 export function getCanonicalIsland(isla: string): string {
   const lower = isla.toLowerCase();
-  if (lower.includes("tenerife") || lower.includes("orotava") || lower.includes("tacoronte") || lower.includes("ycoden") || lower.includes("güimar") || lower.includes("abona")) return "Tenerife";
+  if (lower.includes("tenerife") || lower.includes("orotava") || lower.includes("tacoronte") || lower.includes("ycoden") || lower.includes("güimar") || lower.includes("güímar") || lower.includes("abona")) return "Tenerife";
   if (lower.includes("gran canaria") || lower.includes("monte lentiscal")) return "Gran Canaria";
   if (lower.includes("lanzarote")) return "Lanzarote";
   if (lower.includes("la palma")) return "La Palma";
-  if (lower.includes("el hierro")) return "El Hierro";
-  if (lower.includes("la gomera")) return "La Gomera";
+  if (lower.includes("el hierro") || lower.includes("hierro")) return "El Hierro";
+  if (lower.includes("la gomera") || lower.includes("gomera")) return "La Gomera";
   if (lower.includes("fuerteventura")) return "Fuerteventura";
   return isla;
 }
