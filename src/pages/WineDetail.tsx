@@ -50,24 +50,28 @@ export default function WineDetail() {
     puntuacion_parker: number | null;
   } | null>(null);
 
-  const fetchSupaWine = useCallback(() => {
+  const fetchSupaWine = useCallback(async () => {
     if (!wine) return;
+    console.log("[fetchSupaWine] buscando:", wine.nombre, "anada:", wine.anada);
+
+    // Try nombre + anada first for precision
     let query = supabase
       .from("vinos")
       .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url, formato_ml, subtipo, graduacion, temp_servicio_min, temp_servicio_max, crianza, puntuacion_parker")
-      .eq("nombre", wine.nombre);
+      .ilike("nombre", wine.nombre);
 
-    // Narrow by añada when available for precision
     if (wine.anada != null) {
       query = query.eq("anada", wine.anada);
     }
 
-    query
-      .limit(1)
-      .single()
-      .then(({ data }) => {
-        if (data) setSupaWine(data as any);
-      });
+    const { data, error } = await query.limit(1).maybeSingle();
+    console.log("[fetchSupaWine] result:", data ? data.id : "null", "error:", error?.message);
+
+    if (data) {
+      setSupaWine(data as any);
+    } else if (error) {
+      console.error("[fetchSupaWine] error:", error);
+    }
   }, [wine?.nombre, wine?.anada]);
 
   useEffect(() => {
