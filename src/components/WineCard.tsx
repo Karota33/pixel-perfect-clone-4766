@@ -8,10 +8,21 @@ interface WineCardProps {
   wine: Wine;
 }
 
+function getStockColor(stock: number | null): string {
+  if (stock === null || stock <= 0) return "hsl(var(--wine-unavailable))";
+  if (stock === 1) return "hsl(var(--wine-low))";
+  return "hsl(var(--wine-available))";
+}
+
+function getStockTooltip(stock: number | null): string | undefined {
+  if (stock === 1) return "Última unidad";
+  if (stock === 0) return "Sin stock";
+  return undefined;
+}
+
 export default function WineCard({ wine }: WineCardProps) {
   const navigate = useNavigate();
   const { getMarginFor } = useMarginSettings();
-  const isAvailable = wine.stock !== null && wine.stock > 0;
 
   const marginTarget = getMarginFor(wine.tipo);
   const marginReal = calcMarginReal(wine.precio_carta, wine.precio_coste);
@@ -34,11 +45,8 @@ export default function WineCard({ wine }: WineCardProps) {
           <div className="flex items-center gap-2 mb-1">
             <span
               className="inline-block w-2 h-2 rounded-full shrink-0"
-              style={{
-                backgroundColor: isAvailable
-                  ? "hsl(var(--wine-available))"
-                  : "hsl(var(--wine-unavailable))",
-              }}
+              title={getStockTooltip(wine.stock)}
+              style={{ backgroundColor: getStockColor(wine.stock) }}
             />
             <span
               className="inline-block w-2 h-2 rounded-full shrink-0"
@@ -76,8 +84,8 @@ export default function WineCard({ wine }: WineCardProps) {
             <span className="text-sm text-muted-foreground">S/P</span>
           )}
           {wine.stock !== null && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {wine.stock} ud.
+            <p className="text-xs mt-0.5" style={{ color: getStockColor(wine.stock) }}>
+              {wine.stock === 1 ? "⚠️ 1 ud." : `${wine.stock} ud.`}
             </p>
           )}
         </div>

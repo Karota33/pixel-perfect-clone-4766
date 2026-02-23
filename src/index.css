@@ -37,7 +37,8 @@
     --radius: 0.625rem;
 
     --wine-available: 142 71% 45%;
-    --wine-unavailable: 0 0% 70%;
+    --wine-low: 38 92% 50%;
+    --wine-unavailable: 0 84% 60%;
     --wine-white: 48 80% 70%;
     --wine-red: 0 60% 40%;
     --wine-rose: 340 60% 65%;

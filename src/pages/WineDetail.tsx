@@ -5,13 +5,15 @@ import { usePriceHistory } from "@/hooks/usePriceHistory";
 import { getCanonicalIsland, getTypeLabel } from "@/types/wine";
 import { calcMarginReal, calcPvpSugerido, getMarginStatus, getMarginColor } from "@/lib/margins";
 import { ArrowLeft, Minus, Plus, Save, ChevronDown, ChevronUp } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import WineDescriptionSection from "@/components/wine-detail/WineDescriptionSection";
 import WineCompletenessBar from "@/components/wine-detail/WineCompletenessBar";
 import WineMaridajesSection from "@/components/wine-detail/WineMaridajesSection";
 import WineDocumentsSection from "@/components/wine-detail/WineDocumentsSection";
+import StockDecrementSheet from "@/components/wine-detail/StockDecrementSheet";
+import StockHistorySection from "@/components/wine-detail/StockHistorySection";
 import { useBodegas } from "@/hooks/useBodegas";
 
 export default function WineDetail() {
@@ -29,6 +31,9 @@ export default function WineDetail() {
   const [showHistory, setShowHistory] = useState(false);
   const { bodegas } = useBodegas();
   const [selectedBodegaId, setSelectedBodegaId] = useState<string | null>(null);
+  const [showDecrementSheet, setShowDecrementSheet] = useState(false);
+  const [stockRefreshKey, setStockRefreshKey] = useState(0);
+
   // Supabase wine record for descriptions
   const [supaWine, setSupaWine] = useState<{
     id: string;
@@ -42,7 +47,6 @@ export default function WineDetail() {
 
   useEffect(() => {
     if (!wine) return;
-    // Find wine in Supabase by nombre
     supabase
       .from("vinos")
       .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url")
@@ -66,6 +70,39 @@ export default function WineDetail() {
     }
   }, [wine]);
 
+  const recordStockMovement = useCallback(async (
+    tipo: string,
+    cantidad: number,
+    motivo: string,
+  ) => {
+    if (!supaWine) return;
+    await supabase.from("stock_movimientos").insert({
+      vino_id: supaWine.id,
+      tipo,
+      cantidad,
+      motivo,
+    });
+    setStockRefreshKey((k) => k + 1);
+  }, [supaWine]);
+
+  const handleDecrement = () => {
+    if (stock <= 0) return;
+    setShowDecrementSheet(true);
+  };
+
+  const handleDecrementConfirm = (motivo: string) => {
+    setShowDecrementSheet(false);
+    const newStock = Math.max(0, stock - 1);
+    setStock(newStock);
+    recordStockMovement("salida", 1, motivo);
+  };
+
+  const handleIncrement = () => {
+    const newStock = stock + 1;
+    setStock(newStock);
+    recordStockMovement("entrada", 1, "entrada");
+  };
+
   if (!wine) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -82,7 +119,6 @@ export default function WineDetail() {
   const priceHistory = getForWine(wine.id);
 
   const handleSave = () => {
-    // Record price changes
     if ((precioCarta || null) !== wine.precio_carta) {
       record(wine.id, "precio_carta", wine.precio_carta, precioCarta || null);
     }
@@ -117,18 +153,14 @@ export default function WineDetail() {
         {/* Hero photo */}
         {supaWine?.foto_url && (
           <div className="flex justify-center">
-            <img
-              src={supaWine.foto_url}
-              alt={wine.nombre}
-              className="h-48 object-contain rounded-xl"
-            />
+            <img src={supaWine.foto_url} alt={wine.nombre} className="h-48 object-contain rounded-xl" />
           </div>
         )}
 
         {/* Name */}
         <div className="space-y-1">
           <h2 className="font-display text-2xl font-bold text-foreground leading-tight">
-          {wine.nombre}
+            {wine.nombre}
           </h2>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Bodega</label>
@@ -138,10 +170,7 @@ export default function WineDetail() {
                 const newId = e.target.value || null;
                 setSelectedBodegaId(newId);
                 if (supaWine) {
-                  await supabase
-                    .from("vinos")
-                    .update({ bodega_id: newId })
-                    .eq("id", supaWine.id);
+                  await supabase.from("vinos").update({ bodega_id: newId }).eq("id", supaWine.id);
                   toast.success("Bodega actualizada");
                 }
               }}
@@ -149,9 +178,7 @@ export default function WineDetail() {
             >
               <option value="">Sin bodega</option>
               {bodegas.filter((b) => b.tipo_entidad === 'bodega').map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.nombre}
-                </option>
+                <option key={b.id} value={b.id}>{b.nombre}</option>
               ))}
             </select>
           </div>
@@ -193,8 +220,9 @@ export default function WineDetail() {
             </label>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setStock(Math.max(0, stock - 1))}
-                className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-accent transition-colors"
+                onClick={handleDecrement}
+                disabled={stock <= 0}
+                className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
               >
                 <Minus className="w-4 h-4" />
               </button>
@@ -202,7 +230,7 @@ export default function WineDetail() {
                 {stock}
               </span>
               <button
-                onClick={() => setStock(stock + 1)}
+                onClick={handleIncrement}
                 className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-accent transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -212,9 +240,7 @@ export default function WineDetail() {
 
           {/* Precio Carta */}
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">
-              Precio carta (€)
-            </label>
+            <label className="text-xs text-muted-foreground mb-1 block">Precio carta (€)</label>
             <input
               type="number"
               value={precioCarta || ""}
@@ -225,9 +251,7 @@ export default function WineDetail() {
 
           {/* Precio Coste */}
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">
-              Precio coste (€)
-            </label>
+            <label className="text-xs text-muted-foreground mb-1 block">Precio coste (€)</label>
             <input
               type="number"
               value={precioCoste || ""}
@@ -244,11 +268,8 @@ export default function WineDetail() {
                   className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: getMarginColor(marginStatus) }}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Margen objetivo: {marginTarget}%
-                </p>
+                <p className="text-xs text-muted-foreground">Margen objetivo: {marginTarget}%</p>
               </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground">Margen real</p>
@@ -289,6 +310,11 @@ export default function WineDetail() {
             Guardar cambios
           </button>
         </div>
+
+        {/* Stock History */}
+        {supaWine && (
+          <StockHistorySection vinoId={supaWine.id} refreshKey={stockRefreshKey} />
+        )}
 
         {/* Wine Description Section */}
         {supaWine && (
@@ -379,6 +405,13 @@ export default function WineDetail() {
           </div>
         )}
       </main>
+
+      {/* Bottom Sheet for stock decrement */}
+      <StockDecrementSheet
+        open={showDecrementSheet}
+        onConfirm={handleDecrementConfirm}
+        onCancel={() => setShowDecrementSheet(false)}
+      />
     </div>
   );
 }
