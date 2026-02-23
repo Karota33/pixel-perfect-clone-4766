@@ -62,18 +62,31 @@ export default function BodegaAutocomplete({ bodegas, selectedBodegaId, onBodega
   return (
     <div ref={containerRef} className="relative">
       <label className="text-xs text-muted-foreground mb-1 block">Bodega</label>
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-          if (!e.target.value.trim()) onBodegaChange(null);
-        }}
-        onFocus={() => setOpen(true)}
-        placeholder="Buscar o crear bodega…"
-        className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-      />
+      {selected && !open ? (
+        <div className="flex items-center gap-2 w-full px-3 py-2 bg-card border border-border rounded-lg">
+          <span className="text-sm font-medium text-foreground flex-1 truncate">{selected.nombre}</span>
+          <button
+            onClick={() => { onBodegaChange(null); setQuery(""); }}
+            className="p-0.5 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            aria-label="Desvincular bodega"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      ) : (
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+            if (!e.target.value.trim()) onBodegaChange(null);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="Buscar o crear bodega…"
+          className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+        />
+      )}
       {open && query.trim().length > 0 && (
         <div className="absolute z-20 mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
           {filtered.map((b) => (
@@ -95,7 +108,7 @@ export default function BodegaAutocomplete({ bodegas, selectedBodegaId, onBodega
               disabled={creating}
               className="w-full text-left px-3 py-2 text-sm text-primary font-medium hover:bg-accent transition-colors border-t border-border"
             >
-              + Crear bodega "{query.trim()}"
+              + Crear "{query.trim()}" como nueva bodega
             </button>
           )}
           {filtered.length === 0 && exactMatch && (
