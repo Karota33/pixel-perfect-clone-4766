@@ -96,6 +96,7 @@ export default function WineDetail() {
     updateWine(wine!.id, { stock: newStock });
     persistStock(newStock);
     recordStockMovement("salida", 1, motivo);
+    toast.success("Stock actualizado");
   };
 
   const handleIncrement = () => {
@@ -104,6 +105,7 @@ export default function WineDetail() {
     updateWine(wine!.id, { stock: newStock });
     persistStock(newStock);
     recordStockMovement("entrada", 1, "entrada");
+    toast.success("Stock actualizado");
   };
 
   const handleBodegaChange = async (newId: string | null) => {
