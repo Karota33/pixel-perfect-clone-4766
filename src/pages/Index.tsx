@@ -6,7 +6,8 @@ import { calcMarginReal, getMarginStatus } from "@/lib/margins";
 import WineCard from "@/components/WineCard";
 import FilterChips from "@/components/FilterChips";
 import SearchBar from "@/components/SearchBar";
-import { Wine as WineIcon, Settings, Warehouse, FileText } from "lucide-react";
+import NewWineDrawer from "@/components/NewWineDrawer";
+import { Wine as WineIcon, Settings, Warehouse, FileText, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const TYPE_OPTIONS = ["Blanco", "Orange", "Tinto", "Rosado", "Espumoso", "Dulce"];
@@ -19,6 +20,7 @@ export default function Index() {
   const [typeFilter, setTypeFilter] = useState("");
   const [islandFilter, setIslandFilter] = useState("");
   const [marginLowOnly, setMarginLowOnly] = useState(false);
+  const [showNewWine, setShowNewWine] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -133,6 +135,21 @@ export default function Index() {
           filtered.map((wine) => <WineCard key={wine.id} wine={wine} />)
         )}
       </main>
+
+      {/* FAB */}
+      <button
+        onClick={() => setShowNewWine(true)}
+        className="fixed bottom-6 right-6 z-20 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity active:scale-95"
+        aria-label="Añadir vino"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
+      <NewWineDrawer
+        open={showNewWine}
+        onOpenChange={setShowNewWine}
+        onCreated={() => window.location.reload()}
+      />
     </div>
   );
 }

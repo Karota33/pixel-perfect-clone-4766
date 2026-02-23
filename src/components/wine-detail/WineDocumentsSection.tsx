@@ -243,7 +243,21 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
           </label>
         </div>
         {docs.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground/60 text-sm">Sin documentos vinculados</div>
+          <div className="p-4 space-y-3">
+            <p className="text-center text-muted-foreground/60 text-sm">Sin documentos vinculados</p>
+            <div className="flex items-start gap-2 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-lg">
+              <span className="text-base mt-0.5">💡</span>
+              <p className="text-xs text-foreground/80">
+                ¿Tienes la ficha técnica? Súbela y completamos los datos automáticamente →{" "}
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="text-primary font-medium underline underline-offset-2"
+                >
+                  Adjuntar
+                </button>
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="divide-y divide-border">
             {docs.map((doc) => (
