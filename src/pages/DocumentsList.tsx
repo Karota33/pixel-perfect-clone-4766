@@ -35,7 +35,7 @@ function getTypeLabel(tipo: string): string {
 export default function DocumentsList() {
   const navigate = useNavigate();
   const { documentos, loading, fetchDocumentos } = useDocumentos();
-  const { bodegas } = useBodegas();
+  const { bodegas, fetchBodegas } = useBodegas();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [bodegaFilter, setBodegaFilter] = useState("");
@@ -51,6 +51,33 @@ export default function DocumentsList() {
   const [uploadEtiquetas, setUploadEtiquetas] = useState("");
   const [uploadNotas, setUploadNotas] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [showNewBodega, setShowNewBodega] = useState(false);
+  const [newBodegaNombre, setNewBodegaNombre] = useState("");
+  const [creatingBodega, setCreatingBodega] = useState(false);
+
+  
+
+  const handleCreateBodega = async () => {
+    if (!newBodegaNombre.trim()) return;
+    setCreatingBodega(true);
+    try {
+      const { data, error } = await supabase
+        .from("bodegas")
+        .insert({ nombre: newBodegaNombre.trim() })
+        .select("id")
+        .single();
+      if (error) throw error;
+      toast.success(`Bodega "${newBodegaNombre.trim()}" creada`);
+      setUploadBodegaId(data.id);
+      setNewBodegaNombre("");
+      setShowNewBodega(false);
+      fetchBodegas();
+    } catch (err: any) {
+      toast.error(err.message || "Error al crear bodega");
+    } finally {
+      setCreatingBodega(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -276,20 +303,61 @@ export default function DocumentsList() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">
-                Bodega *
+                Bodega / Proveedor *
               </label>
-              <select
-                value={uploadBodegaId}
-                onChange={(e) => setUploadBodegaId(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
-              >
-                <option value="">Seleccionar...</option>
-                {bodegas.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.nombre}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={uploadBodegaId}
+                  onChange={(e) => setUploadBodegaId(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+                >
+                  <option value="">Seleccionar...</option>
+                  {bodegas.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.nombre}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowNewBodega(true)}
+                  className="px-2.5 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-bold hover:bg-accent transition-colors shrink-0"
+                  title="Crear nueva bodega"
+                >
+                  +
+                </button>
+              </div>
+              {showNewBodega && (
+                <div className="mt-2 p-3 border border-border rounded-lg bg-secondary/30 space-y-2">
+                  <label className="text-xs text-muted-foreground block">
+                    Nombre nueva bodega *
+                  </label>
+                  <input
+                    type="text"
+                    value={newBodegaNombre}
+                    onChange={(e) => setNewBodegaNombre(e.target.value)}
+                    placeholder="Ej: Vinofilos, Premium Drinks..."
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => { setShowNewBodega(false); setNewBodegaNombre(""); }}
+                      className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!newBodegaNombre.trim() || creatingBodega}
+                      onClick={handleCreateBodega}
+                      className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {creatingBodega ? "Creando..." : "Crear"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">
