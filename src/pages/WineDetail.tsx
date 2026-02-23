@@ -43,13 +43,18 @@ export default function WineDetail() {
     foto_url: string | null;
     formato_ml: number | null;
     subtipo: string | null;
+    graduacion: number | null;
+    temp_servicio_min: number | null;
+    temp_servicio_max: number | null;
+    crianza: string | null;
+    puntuacion_parker: number | null;
   } | null>(null);
 
-  useEffect(() => {
+  const fetchSupaWine = useCallback(() => {
     if (!wine) return;
     supabase
       .from("vinos")
-      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url, formato_ml, subtipo")
+      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url, formato_ml, subtipo, graduacion, temp_servicio_min, temp_servicio_max, crianza, puntuacion_parker")
       .eq("nombre", wine.nombre)
       .limit(1)
       .single()
@@ -57,6 +62,10 @@ export default function WineDetail() {
         if (data) setSupaWine(data as any);
       });
   }, [wine?.nombre]);
+
+  useEffect(() => {
+    fetchSupaWine();
+  }, [fetchSupaWine]);
 
   useEffect(() => {
     if (supaWine) {
@@ -220,6 +229,7 @@ export default function WineDetail() {
               priceHistory={priceHistory}
               stockRefreshKey={stockRefreshKey}
               onFotoUpdated={(url) => setSupaWine((prev) => prev ? { ...prev, foto_url: url } : prev)}
+              onWineDataUpdated={fetchSupaWine}
             />
           </TabsContent>
         </Tabs>
