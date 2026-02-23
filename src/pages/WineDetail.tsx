@@ -27,6 +27,7 @@ export default function WineDetail() {
   const [precioCarta, setPrecioCarta] = useState(wine?.precio_carta ?? 0);
   const [precioCoste, setPrecioCoste] = useState(wine?.precio_coste ?? 0);
   const [doValue, setDoValue] = useState("");
+  const [formatoMl, setFormatoMl] = useState(750);
   const [selectedBodegaId, setSelectedBodegaId] = useState<string | null>(null);
   const [showDecrementSheet, setShowDecrementSheet] = useState(false);
   const [stockRefreshKey, setStockRefreshKey] = useState(0);
@@ -39,18 +40,19 @@ export default function WineDetail() {
     bodega_id: string | null;
     do: string | null;
     foto_url: string | null;
+    formato_ml: number | null;
   } | null>(null);
 
   useEffect(() => {
     if (!wine) return;
     supabase
       .from("vinos")
-      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url")
+      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url, formato_ml")
       .eq("nombre", wine.nombre)
       .limit(1)
       .single()
       .then(({ data }) => {
-        if (data) setSupaWine(data);
+        if (data) setSupaWine(data as any);
       });
   }, [wine?.nombre]);
 
@@ -58,6 +60,7 @@ export default function WineDetail() {
     if (supaWine) {
       setSelectedBodegaId(supaWine.bodega_id);
       setDoValue(supaWine.do || wine?.do || "");
+      setFormatoMl(supaWine.formato_ml ?? 750);
     }
   }, [supaWine]);
 
@@ -140,9 +143,13 @@ export default function WineDetail() {
       precio_coste: precioCoste || null,
     });
 
-    // Save DO to supabase
-    if (supaWine && doValue !== (supaWine.do || "")) {
-      await supabase.from("vinos").update({ do: doValue || null }).eq("id", supaWine.id);
+    if (supaWine) {
+      const updates: Record<string, any> = {};
+      if (doValue !== (supaWine.do || "")) updates.do = doValue || null;
+      if (formatoMl !== (supaWine.formato_ml ?? 750)) updates.formato_ml = formatoMl;
+      if (Object.keys(updates).length > 0) {
+        await supabase.from("vinos").update(updates).eq("id", supaWine.id);
+      }
     }
 
     toast.success("Guardado");
@@ -187,6 +194,8 @@ export default function WineDetail() {
               onIncrement={handleIncrement}
               onDecrement={handleDecrement}
               onSave={handleSave}
+              formatoMl={formatoMl}
+              setFormatoMl={setFormatoMl}
             />
           </TabsContent>
 

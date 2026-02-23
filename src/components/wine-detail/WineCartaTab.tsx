@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { getCanonicalIsland, getTypeLabel } from "@/types/wine";
 import WineCompletenessBar from "./WineCompletenessBar";
 import BodegaAutocomplete from "./BodegaAutocomplete";
+import { getCopaMaridajeMl } from "@/hooks/useCopaMaridaje";
 
 const DO_OPTIONS = [
   "Sin D.O.",
@@ -20,6 +21,24 @@ const DO_OPTIONS = [
   "D.O.P. Islas Canarias",
 ];
 
+const FORMATO_OPTIONS = [
+  { value: 375, label: "375ml (37.5cl)" },
+  { value: 500, label: "500ml (50cl)" },
+  { value: 750, label: "750ml (75cl)" },
+  { value: 1500, label: "1500ml (Magnum)" },
+];
+
+const COPAS_SERVICIO: Record<number, number> = {
+  375: 3,
+  500: 4,
+  750: 6,
+  1500: 12,
+};
+
+function roundHalf(n: number): string {
+  return (Math.round(n * 2) / 2).toFixed(2);
+}
+
 interface Props {
   wine: any;
   supaWine: any;
@@ -34,13 +53,8 @@ interface Props {
   onIncrement: () => void;
   onDecrement: () => void;
   onSave: () => void;
-}
-
-function calcCopa(precioCarta: number | null): string | null {
-  if (!precioCarta || precioCarta <= 0) return null;
-  const raw = precioCarta / 6;
-  const rounded = Math.round(raw * 2) / 2; // round to nearest .50
-  return rounded.toFixed(2);
+  formatoMl: number;
+  setFormatoMl: (v: number) => void;
 }
 
 function DoSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -109,12 +123,34 @@ function DoSelector({ value, onChange }: { value: string; onChange: (v: string) 
   );
 }
 
+function FormatoSelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="bg-card rounded-lg border border-border p-3">
+      <label className="text-xs text-muted-foreground mb-1 block">Formato</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full text-sm font-medium text-foreground bg-transparent focus:outline-none cursor-pointer"
+      >
+        {FORMATO_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function WineCartaTab({
   wine, supaWine, stock, precioCarta, setPrecioCarta,
   doValue, setDoValue, bodegas, selectedBodegaId, onBodegaChange,
-  onIncrement, onDecrement, onSave,
+  onIncrement, onDecrement, onSave, formatoMl, setFormatoMl,
 }: Props) {
-  const copaEstimada = calcCopa(precioCarta);
+  const copasServicio = COPAS_SERVICIO[formatoMl] ?? 6;
+  const copaMaridajeMl = getCopaMaridajeMl();
+  const copasMaridaje = formatoMl / copaMaridajeMl;
+
+  const precioCopaServicio = precioCarta && precioCarta > 0 ? roundHalf(precioCarta / copasServicio) : null;
+  const precioCopaMaridaje = precioCarta && precioCarta > 0 && copasMaridaje > 0 ? roundHalf(precioCarta / copasMaridaje) : null;
 
   return (
     <div className="space-y-5">
@@ -149,6 +185,7 @@ export default function WineCartaTab({
         <InfoItem label="Tipo" value={getTypeLabel(wine.tipo)} />
         <InfoItem label="Isla" value={getCanonicalIsland(wine.isla)} />
         <DoSelector value={doValue} onChange={setDoValue} />
+        <FormatoSelector value={formatoMl} onChange={setFormatoMl} />
         <InfoItem label="Añada" value={wine.anada?.toString() || "—"} />
       </div>
 
@@ -193,11 +230,19 @@ export default function WineCartaTab({
           />
         </div>
 
-        {/* Copa estimada */}
-        {copaEstimada && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
-            <span className="text-sm text-muted-foreground">🍷 Copa estimada:</span>
-            <span className="text-sm font-semibold text-foreground">{copaEstimada}€</span>
+        {/* Precios por copa */}
+        {precioCopaServicio && (
+          <div className="space-y-1.5 px-3 py-2.5 bg-secondary/50 rounded-lg">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">🍷 Por copa (servicio)</span>
+              <span className="font-semibold text-foreground">{precioCopaServicio}€</span>
+            </div>
+            {precioCopaMaridaje && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">🍽️ Por copa (maridaje)</span>
+                <span className="font-semibold text-foreground">{precioCopaMaridaje}€</span>
+              </div>
+            )}
           </div>
         )}
 
