@@ -1,38 +1,60 @@
 
 
-## Bug: Tabs Bodega y Gestion se quedan en skeleton para algunos vinos
+## Solucion: Vincular vinos por `id_local` en lugar de por nombre
 
-### Causa raiz
+### Problema actual
 
-El nombre del vino en los datos locales (JSON) incluye el ano al final: `"LAVA FINCA LAS ARBEJAS 2022"`. Pero en la base de datos, el mismo vino se guarda como `"Lava Finca Las Arbejas"` (sin el ano, y en formato titulo).
+La app usa un ID numerico local (indice del array JSON: 1, 2, 3...) para la URL (`/vino/77`), pero busca el registro en la base de datos por nombre con `ilike`. Esto es fragil: si el nombre cambia, el vino queda huerfano. Ademas, la extraccion de PDF puede sobrescribir `nombre` y `anada`, rompiendo la vinculacion.
 
-La consulta actual usa `.ilike("nombre", wine.nombre)` que busca una coincidencia exacta (case-insensitive) del string completo. Como `"LAVA FINCA LAS ARBEJAS 2022"` no es igual a `"Lava Finca Las Arbejas"`, devuelve 0 resultados y `supaWine` queda null para siempre.
+### Solucion en 3 partes
 
-Esto no ocurre en la mayoria de vinos porque en la BD la mayoria tiene el ano incluido en `nombre` (ej: `"TARO 2021"`, `"MAHO 2023"`). Solo falla en los pocos donde el nombre en BD no incluye el ano.
+---
 
-### Solucion
+### PARTE 1 - Columna `id_local` en la base de datos
 
-Modificar `fetchSupaWine` en `WineDetail.tsx` con una estrategia de busqueda en 2 pasos:
+1. **Migracion SQL**: Anadir columna `id_local integer UNIQUE` a la tabla `vinos`
+2. **Poblar datos existentes**: Ejecutar un script que asigne a cada vino existente su `id_local` basado en coincidencia de nombre con el JSON local (los indices 1..N que genera `wines.ts`)
+3. **Cambiar `fetchSupaWine`** en `WineDetail.tsx`: reemplazar toda la logica de busqueda por nombre (los dos intentos con ilike y fallback de ano) por una sola query:
+   ```
+   supabase.from("vinos").select(cols).eq("id_local", Number(id)).maybeSingle()
+   ```
+4. **Cambiar `useWines.ts`**: en el merge de datos de Supabase, buscar tambien por `id_local` en lugar de por nombre
 
-1. **Intento 1** - Buscar con el nombre completo (como ahora): `.ilike("nombre", wine.nombre)`
-2. **Intento 2 (fallback)** - Si no hay resultados y el nombre termina en un ano (4 digitos), quitar el ano del nombre y buscar sin el: `.ilike("nombre", nombreSinAnada)` combinado con `.eq("anada", wine.anada)`
+---
 
-### Cambios tecnicos
+### PARTE 2 - Proteger nombre y anada en extraccion de PDF
 
-**Archivo: `src/pages/WineDetail.tsx`** (funcion `fetchSupaWine`)
+En `WineDocumentsSection.tsx`:
+- Eliminar `nombre` y `anada` del objeto `fieldMap` dentro de `triggerExtraction` para que nunca se incluyan como campos extraidos
+- Eliminar `nombre` y `anada` de `FIELD_LABELS` para que no aparezcan en el modal de verificacion
 
-```text
-Flujo actual:
-  query = ilike("nombre", "LAVA FINCA LAS ARBEJAS 2022") → 0 resultados → supaWine = null
+Esto impide que la extraccion automatica de un PDF pueda cambiar el nombre o anada del vino, que son parte de su identidad.
 
-Flujo corregido:
-  1. query = ilike("nombre", "LAVA FINCA LAS ARBEJAS 2022") → 0 resultados
-  2. Detectar que "2022" al final es un ano → quitar → "LAVA FINCA LAS ARBEJAS"
-  3. query = ilike("nombre", "LAVA FINCA LAS ARBEJAS") + eq("anada", 2022) → 1 resultado
-  4. setSupaWine(resultado)
+---
+
+### PARTE 3 - Nuevos vinos desde NewWineDrawer
+
+En `NewWineDrawer.tsx`, al crear un vino:
+1. Antes del INSERT, consultar `SELECT MAX(id_local) FROM vinos` para obtener el siguiente ID disponible
+2. Insertar el vino con `id_local = maxIdLocal + 1`
+3. Tras el INSERT, usar el nuevo `id_local` para anadir el vino al estado local de `useWines` con el mismo ID numerico
+4. Navegar a `/vino/:id_local` si se desea abrir la ficha tras crear
+
+---
+
+### Detalles tecnicos
+
+**Archivos a modificar:**
+- Nueva migracion SQL (columna `id_local`)
+- `src/pages/WineDetail.tsx` - simplificar `fetchSupaWine` a una sola query por `id_local`
+- `src/hooks/useWines.ts` - merge por `id_local` en lugar de por nombre
+- `src/components/wine-detail/WineDocumentsSection.tsx` - eliminar `nombre` y `anada` de `fieldMap` y `FIELD_LABELS`
+- `src/components/NewWineDrawer.tsx` - generar `id_local` al crear
+
+**Migracion SQL:**
+```sql
+ALTER TABLE vinos ADD COLUMN IF NOT EXISTS id_local integer UNIQUE;
 ```
 
-La logica concreta:
-- Despues de la primera query, si `data.length === 0` y `wine.nombre` termina en `\s\d{4}$`, hacer trim del ano y repetir la busqueda
-- Anadir un `console.log` del fallback para diagnostico futuro
-- No se necesitan cambios en la base de datos ni en otros archivos
+**Poblado inicial:** Se ejecutara un UPDATE para cada vino existente, emparejando por nombre con los datos del JSON. Los vinos creados desde la app que no estan en el JSON recibiran IDs secuenciales a partir del maximo.
+
