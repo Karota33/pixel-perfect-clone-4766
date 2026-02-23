@@ -3,12 +3,20 @@ import { Wine } from "@/types/wine";
 import { initialWines } from "@/data/wines";
 
 const STORAGE_KEY = "tabaiba_wines";
+const VERSION_KEY = "tabaiba_wines_version";
+const CURRENT_VERSION = "2";
 
 function loadWines(): Wine[] {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
+    const version = localStorage.getItem(VERSION_KEY);
+    if (version === CURRENT_VERSION) {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) return JSON.parse(stored);
+    }
   } catch {}
+  // Reset to fresh data
+  localStorage.setItem(VERSION_KEY, CURRENT_VERSION);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(initialWines));
   return initialWines;
 }
 

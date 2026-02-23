@@ -1,30 +1,9 @@
-import { Wine } from "@/types/wine";
+import { Wine, RawWine } from "@/types/wine";
+import rawWines from "@/data/vinos_tabaiba.json";
 
-// Sample data — replace with full vinos_tabaiba.json (283 records)
-export const initialWines: Wine[] = [
-  { id: 1, nombre: "TAGANAN MARGALAGUA 2022", isla: "DO Tacoronte-Acentejo", tipo: "tinto", uvas: "LISTÁN NEGRO + NEGRAMOLL + VIJARIEGO NEGRO", anada: 2022, precio_carta: 200, precio_coste: null, stock: 0, bodega: "Envínate", do: "D.O. Tacoronte-Acentejo" },
-  { id: 2, nombre: "TAGANAN TINTO 2022", isla: "DO Tacoronte-Acentejo", tipo: "tinto", uvas: "LISTÁN NEGRO + NEGRAMOLL", anada: 2022, precio_carta: 85, precio_coste: 28, stock: 4, bodega: "Envínate", do: "D.O. Tacoronte-Acentejo" },
-  { id: 3, nombre: "TAGANAN BLANCO 2022", isla: "DO Tacoronte-Acentejo", tipo: "blanco", uvas: "LISTÁN BLANCO + MALVASÍA + MARMAJUELO", anada: 2022, precio_carta: 80, precio_coste: 26, stock: 6, bodega: "Envínate", do: "D.O. Tacoronte-Acentejo" },
-  { id: 4, nombre: "BIMBACHE BLANCO 2021", isla: "El Hierro", tipo: "blanco", uvas: "LISTÁN BLANCO + VIJARIEGO + BABOSO BLANCO", anada: 2021, precio_carta: 95, precio_coste: null, stock: 3, bodega: "Bimbache", do: null },
-  { id: 5, nombre: "BIMBACHE TINTO 2021", isla: "El Hierro", tipo: "tinto", uvas: "LISTÁN NEGRO + BABOSO NEGRO + VIJARIEGO NEGRO", anada: 2021, precio_carta: 110, precio_coste: null, stock: 2, bodega: "Bimbache", do: null },
-  { id: 6, nombre: "MALVASÍA VOLCÁNICA SECO 2022", isla: "Lanzarote", tipo: "blanco", uvas: "MALVASÍA VOLCÁNICA", anada: 2022, precio_carta: 55, precio_coste: 18, stock: 12, bodega: "El Grifo", do: "D.O. Lanzarote" },
-  { id: 7, nombre: "ANCESTRAL ECOLÓGICO 2021", isla: "Lanzarote", tipo: "espumoso", uvas: "MALVASÍA VOLCÁNICA", anada: 2021, precio_carta: 75, precio_coste: 25, stock: 5, bodega: "El Grifo", do: "D.O. Lanzarote" },
-  { id: 8, nombre: "CANARI 2020", isla: "Lanzarote", tipo: "dulce", uvas: "MALVASÍA VOLCÁNICA", anada: 2020, precio_carta: 130, precio_coste: null, stock: 1, bodega: "El Grifo", do: "D.O. Lanzarote" },
-  { id: 9, nombre: "LOS PASITOS 2021", isla: "DO Valle de La Orotava", tipo: "blanco", uvas: "LISTÁN BLANCO", anada: 2021, precio_carta: 120, precio_coste: 40, stock: 3, bodega: "Suertes del Marqués", do: "D.O. Valle de La Orotava" },
-  { id: 10, nombre: "EL ESQUILÓN 2020", isla: "DO Valle de La Orotava", tipo: "tinto", uvas: "LISTÁN NEGRO", anada: 2020, precio_carta: 150, precio_coste: 50, stock: 2, bodega: "Suertes del Marqués", do: "D.O. Valle de La Orotava" },
-  { id: 11, nombre: "TRENZADO 2021", isla: "DO Valle de La Orotava", tipo: "blanco", uvas: "LISTÁN BLANCO + PEDRO XIMÉNEZ + VIJARIEGO", anada: 2021, precio_carta: 65, precio_coste: 22, stock: 8, bodega: "Suertes del Marqués", do: "D.O. Valle de La Orotava" },
-  { id: 12, nombre: "VIÑA AMABLE 2022", isla: "Gran Canaria", tipo: "tinto", uvas: "LISTÁN NEGRO + TINTILLA", anada: 2022, precio_carta: 45, precio_coste: 15, stock: 10, bodega: "Vega de Gáldar", do: "D.O. Gran Canaria" },
-  { id: 13, nombre: "NUBIA ROSADO 2022", isla: "Gran Canaria", tipo: "rosado", uvas: "LISTÁN NEGRO", anada: 2022, precio_carta: 38, precio_coste: 12, stock: 7, bodega: "Vega de Gáldar", do: "D.O. Gran Canaria" },
-  { id: 14, nombre: "PURO ROFE 2021", isla: "Lanzarote", tipo: "blanco", uvas: "MALVASÍA VOLCÁNICA + DIEGO", anada: 2021, precio_carta: 90, precio_coste: null, stock: 0, bodega: "Puro Rofe", do: "D.O. Lanzarote" },
-  { id: 15, nombre: "VIÑÁTIGO GUAL 2021", isla: "Tenerife", tipo: "blanco", uvas: "GUAL", anada: 2021, precio_carta: 48, precio_coste: 16, stock: 5, bodega: "Viñátigo", do: "D.O. Ycoden-Daute-Isora" },
-  { id: 16, nombre: "VIÑÁTIGO TINTILLA 2020", isla: "Tenerife", tipo: "tinto", uvas: "TINTILLA", anada: 2020, precio_carta: 52, precio_coste: 17, stock: 4, bodega: "Viñátigo", do: "D.O. Ycoden-Daute-Isora" },
-  { id: 17, nombre: "FRONTÓN DE ORO BLANCO 2022", isla: "Gran Canaria", tipo: "blanco", uvas: "LISTÁN BLANCO + MALVASÍA", anada: 2022, precio_carta: 34, precio_coste: 11, stock: 15, bodega: null, do: "D.O. Monte Lentiscal" },
-  { id: 18, nombre: "TAMERÁN LISTÁN NEGRO 2021", isla: "Gran Canaria", tipo: "tinto", uvas: "LISTÁN NEGRO", anada: 2021, precio_carta: 42, precio_coste: null, stock: 0, bodega: "Tamerán", do: "D.O. Gran Canaria" },
-  { id: 19, nombre: "BERMEJO MALVASÍA SECO 2022", isla: "Lanzarote", tipo: "blanco", uvas: "MALVASÍA VOLCÁNICA", anada: 2022, precio_carta: 40, precio_coste: 13, stock: 9, bodega: "Bermejo", do: "D.O. Lanzarote" },
-  { id: 20, nombre: "BERMEJO ROSADO 2022", isla: "Lanzarote", tipo: "rosado", uvas: "LISTÁN NEGRO", anada: 2022, precio_carta: 36, precio_coste: 12, stock: 6, bodega: "Bermejo", do: "D.O. Lanzarote" },
-  { id: 21, nombre: "SABINOSA 2019", isla: "El Hierro", tipo: "blanco", uvas: "VIJARIEGO + LISTÁN BLANCO", anada: 2019, precio_carta: 350, precio_coste: null, stock: 1, bodega: "Bimbache", do: null },
-  { id: 22, nombre: "TENEGUÍA BLANCO 2022", isla: "La Palma", tipo: "blanco", uvas: "ALBILLO + LISTÁN BLANCO", anada: 2022, precio_carta: 28, precio_coste: 9, stock: 11, bodega: null, do: "D.O. La Palma" },
-  { id: 23, nombre: "TENEGUÍA TINTO 2021", isla: "La Palma", tipo: "tinto", uvas: "NEGRAMOLL + LISTÁN NEGRO", anada: 2021, precio_carta: 30, precio_coste: 10, stock: 8, bodega: null, do: "D.O. La Palma" },
-  { id: 24, nombre: "MATÍAS I TORRES MALVASÍA DULCE 2018", isla: "La Palma", tipo: "dulce", uvas: "MALVASÍA", anada: 2018, precio_carta: 95, precio_coste: null, stock: 2, bodega: "Matías i Torres", do: "D.O. La Palma" },
-  { id: 25, nombre: "IGNIOS MARMAJUELO 2022", isla: "Tenerife", tipo: "blanco", uvas: "MARMAJUELO", anada: 2022, precio_carta: 55, precio_coste: 18, stock: 0, bodega: null, do: "D.O. Ycoden-Daute-Isora" },
-];
+export const initialWines: Wine[] = (rawWines as RawWine[]).map((w, i) => ({
+  ...w,
+  id: i + 1,
+  bodega: null,
+  do: null,
+}));
