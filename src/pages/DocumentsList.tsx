@@ -14,6 +14,8 @@ import {
   Loader2,
   Check,
   Plus,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import FilterChips from "@/components/FilterChips";
@@ -302,6 +304,8 @@ export default function DocumentsList() {
               key={doc.id}
               doc={doc}
               bodegaNombre={bodegaMap.get(doc.bodega_id) || "—"}
+              onDeleted={fetchDocumentos}
+              onRenamed={fetchDocumentos}
             />
           ))
         )}
@@ -482,49 +486,169 @@ export default function DocumentsList() {
 function DocCard({
   doc,
   bodegaNombre,
+  onDeleted,
+  onRenamed,
 }: {
   doc: Documento;
   bodegaNombre: string;
+  onDeleted: () => void;
+  onRenamed: () => void;
 }) {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editNombre, setEditNombre] = useState(doc.nombre);
+  const [savingName, setSavingName] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      if (doc.storage_path) {
+        await supabase.storage.from("documentos").remove([doc.storage_path]);
+      }
+      const { error } = await supabase.from("documentos").delete().eq("id", doc.id);
+      if (error) throw error;
+      toast.success("Documento eliminado");
+      onDeleted();
+    } catch (e: any) {
+      toast.error(e.message || "Error al eliminar");
+    } finally {
+      setDeleting(false);
+      setShowConfirm(false);
+    }
+  };
+
+  const handleRename = async () => {
+    if (!editNombre.trim()) return;
+    setSavingName(true);
+    try {
+      const { error } = await supabase
+        .from("documentos")
+        .update({ nombre: editNombre.trim() })
+        .eq("id", doc.id);
+      if (error) throw error;
+      toast.success("Nombre actualizado");
+      setShowEdit(false);
+      onRenamed();
+    } catch (e: any) {
+      toast.error(e.message || "Error al renombrar");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   return (
-    <div className="w-full text-left bg-card rounded-lg p-4 shadow-sm border border-border animate-fade-in">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-foreground truncate mb-1">
-            {doc.nombre}
-          </h3>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-            <span className="px-1.5 py-0.5 bg-secondary rounded text-xs font-medium">
-              {getTypeLabel(doc.tipo)}
-            </span>
-            <span>{bodegaNombre}</span>
-            {doc.fecha_documento && (
-              <>
-                <span className="text-border">·</span>
-                <span>
-                  {new Date(doc.fecha_documento).toLocaleDateString("es-ES")}
-                </span>
-              </>
-            )}
-            <span className="text-border">·</span>
-            <span>{formatSize(doc.tamano_bytes)}</span>
-          </div>
-          {doc.etiquetas && doc.etiquetas.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {doc.etiquetas.map((tag, i) => (
-                <span
-                  key={i}
-                  className="px-1.5 py-0.5 bg-accent rounded text-xs text-muted-foreground"
-                >
-                  {tag}
-                </span>
-              ))}
+    <>
+      <div
+        className="group w-full text-left bg-card rounded-lg p-4 shadow-sm border border-border animate-fade-in cursor-pointer hover:border-primary/30 transition-colors"
+        onClick={() => { setEditNombre(doc.nombre); setShowEdit(true); }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-foreground truncate mb-1">
+              {doc.nombre}
+            </h3>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+              <span className="px-1.5 py-0.5 bg-secondary rounded text-xs font-medium">
+                {getTypeLabel(doc.tipo)}
+              </span>
+              <span>{bodegaNombre}</span>
+              {doc.fecha_documento && (
+                <>
+                  <span className="text-border">·</span>
+                  <span>
+                    {new Date(doc.fecha_documento).toLocaleDateString("es-ES")}
+                  </span>
+                </>
+              )}
+              <span className="text-border">·</span>
+              <span>{formatSize(doc.tamano_bytes)}</span>
             </div>
-          )}
+            {doc.etiquetas && doc.etiquetas.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {doc.etiquetas.map((tag, i) => (
+                  <span
+                    key={i}
+                    className="px-1.5 py-0.5 bg-accent rounded text-xs text-muted-foreground"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}
+              className="p-1.5 rounded-lg text-muted-foreground/0 group-hover:text-destructive hover:bg-destructive/10 transition-all"
+              title="Eliminar documento"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <FileText className="w-5 h-5 text-muted-foreground/40" />
+          </div>
         </div>
-        <FileText className="w-5 h-5 text-muted-foreground/40 shrink-0" />
       </div>
-    </div>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">Eliminar documento</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            ¿Eliminar <strong>{doc.nombre}</strong>? Esta acción no se puede deshacer.
+          </p>
+          <div className="flex gap-2 justify-end pt-2">
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {deleting ? "Eliminando..." : "Eliminar"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit name dialog */}
+      <Dialog open={showEdit} onOpenChange={setShowEdit}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display">Editar documento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Nombre visible</label>
+              <input
+                type="text"
+                value={editNombre}
+                onChange={(e) => setEditNombre(e.target.value)}
+                placeholder="Ej: Tajinaste — Ficha técnica 2026"
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring/20"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Archivo original: {doc.storage_path?.split("/").pop() || "—"}
+              </p>
+            </div>
+            <button
+              onClick={handleRename}
+              disabled={savingName || !editNombre.trim()}
+              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              {savingName ? "Guardando..." : "Guardar nombre"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
