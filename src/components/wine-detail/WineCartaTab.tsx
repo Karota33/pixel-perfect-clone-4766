@@ -1,7 +1,24 @@
-import { Minus, Plus, Save } from "lucide-react";
+import { Minus, Plus, Save, ChevronsUpDown, Check } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { getCanonicalIsland, getTypeLabel } from "@/types/wine";
 import WineCompletenessBar from "./WineCompletenessBar";
 import BodegaAutocomplete from "./BodegaAutocomplete";
+
+const DO_OPTIONS = [
+  "Sin D.O.",
+  "D.O. Gran Canaria",
+  "D.O. Lanzarote",
+  "D.O. La Palma",
+  "D.O. El Hierro",
+  "D.O. La Gomera",
+  "D.O. Fuerteventura",
+  "D.O. Tacoronte-Acentejo",
+  "D.O. Valle de La Orotava",
+  "D.O. Ycoden-Daute-Isora",
+  "D.O. Abona",
+  "D.O. Valle de Güímar",
+  "D.O.P. Islas Canarias",
+];
 
 interface Props {
   wine: any;
@@ -26,6 +43,72 @@ function calcCopa(precioCarta: number | null): string | null {
   return rounded.toFixed(2);
 }
 
+function DoSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = DO_OPTIONS.filter((o) =>
+    o.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  const displayValue = value || "Sin D.O.";
+
+  return (
+    <div ref={ref} className="bg-card rounded-lg border border-border p-3 relative">
+      <label className="text-xs text-muted-foreground mb-1 block">D.O.</label>
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setFilter(""); }}
+        className="w-full flex items-center justify-between text-sm font-medium text-foreground bg-transparent focus:outline-none"
+      >
+        <span className="truncate">{displayValue}</span>
+        <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-border">
+            <input
+              type="text"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Buscar D.O.…"
+              autoFocus
+              className="w-full px-2 py-1.5 text-sm bg-background border border-border rounded text-foreground focus:outline-none focus:ring-1 focus:ring-ring/30"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => { onChange(opt === "Sin D.O." ? "" : opt); setOpen(false); }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
+              >
+                {(opt === "Sin D.O." ? !value : value === opt) && (
+                  <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                )}
+                <span className={opt === "Sin D.O." && !value ? "font-medium" : value === opt ? "font-medium" : ""}>{opt}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-2 text-sm text-muted-foreground">Sin resultados</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function WineCartaTab({
   wine, supaWine, stock, precioCarta, setPrecioCarta,
   doValue, setDoValue, bodegas, selectedBodegaId, onBodegaChange,
@@ -35,14 +118,12 @@ export default function WineCartaTab({
 
   return (
     <div className="space-y-5">
-      {/* Hero photo */}
       {supaWine?.foto_url && (
         <div className="flex justify-center">
           <img src={supaWine.foto_url} alt={wine.nombre} className="h-48 object-contain rounded-xl" />
         </div>
       )}
 
-      {/* Name + Bodega */}
       <div className="space-y-2">
         <h2 className="font-display text-2xl font-bold text-foreground leading-tight">{wine.nombre}</h2>
         <BodegaAutocomplete
@@ -52,7 +133,6 @@ export default function WineCartaTab({
         />
       </div>
 
-      {/* Completeness */}
       {supaWine && (
         <WineCompletenessBar
           bodegaId={supaWine.bodega_id}
@@ -65,20 +145,10 @@ export default function WineCartaTab({
         />
       )}
 
-      {/* Info Grid */}
       <div className="grid grid-cols-2 gap-3">
         <InfoItem label="Tipo" value={getTypeLabel(wine.tipo)} />
         <InfoItem label="Isla" value={getCanonicalIsland(wine.isla)} />
-        <div className="bg-card rounded-lg border border-border p-3">
-          <label className="text-xs text-muted-foreground mb-1 block">D.O.</label>
-          <input
-            type="text"
-            value={doValue}
-            onChange={(e) => setDoValue(e.target.value)}
-            placeholder="—"
-            className="w-full text-sm font-medium text-foreground bg-transparent focus:outline-none"
-          />
-        </div>
+        <DoSelector value={doValue} onChange={setDoValue} />
         <InfoItem label="Añada" value={wine.anada?.toString() || "—"} />
       </div>
 
