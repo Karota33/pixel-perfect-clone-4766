@@ -116,6 +116,7 @@ export default function PriceComparator() {
         tipo: newWineType,
         isla: newWineIsla,
         precio_coste: addingNew.csvPrice,
+        anada: addingNew.csvVintage ? parseInt(addingNew.csvVintage) || null : null,
       });
       if (error) throw error;
       toast.success(`"${addingNew.csvName}" añadido a la carta`);
@@ -246,7 +247,7 @@ export default function PriceComparator() {
                             <td className="px-3 py-2.5 text-right text-muted-foreground">
                               {row.currentCost !== null
                                 ? `${row.currentCost.toFixed(2)}€`
-                                : "—"}
+                                : <span className="text-xs italic">Sin precio coste</span>}
                             </td>
                             <td
                               className={`px-3 py-2.5 text-right font-medium ${
@@ -260,8 +261,8 @@ export default function PriceComparator() {
                               }`}
                             >
                               {diff !== null
-                                ? `${getDiffIcon(diff)} ${diff > 0 ? "+" : ""}${diff.toFixed(2)}€`
-                                : "—"}
+                                ? `${getDiffIcon(diff)} ${diff > 0 ? "+" : diff === 0 ? "" : ""}${diff.toFixed(2)}€`
+                                : ""}
                             </td>
                           </tr>
                         );
@@ -355,6 +356,18 @@ export default function PriceComparator() {
                 <label className="text-xs text-muted-foreground mb-1 block">Nombre</label>
                 <p className="text-sm font-medium text-foreground">{addingNew.csvName}</p>
               </div>
+              {addingNew.csvBodega && (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Bodega (del Excel)</label>
+                  <p className="text-sm font-medium text-foreground">{addingNew.csvBodega}</p>
+                </div>
+              )}
+              {addingNew.csvVintage && (
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Añada</label>
+                  <p className="text-sm font-medium text-foreground">{addingNew.csvVintage}</p>
+                </div>
+              )}
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Precio coste</label>
                 <p className="text-sm font-medium text-foreground">{addingNew.csvPrice.toFixed(2)}€</p>

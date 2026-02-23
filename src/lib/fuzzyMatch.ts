@@ -37,9 +37,18 @@ function normalise(s: string): string {
     .trim();
 }
 
+/**
+ * Remove 4-digit year (1900-2099) from a string before comparison.
+ */
+function stripYear(s: string): string {
+  return s.replace(/\b(19|20)\d{2}\b/g, "").replace(/\s+/g, " ").trim();
+}
+
 export interface FuzzyMatch {
   csvName: string;
   csvPrice: number;
+  csvBodega?: string;
+  csvVintage?: string;
   matchedName: string | null;
   matchedId: string | null;
   currentCost: number | null;
@@ -49,23 +58,23 @@ export interface FuzzyMatch {
 
 /**
  * Match CSV rows against wine names.
- * Returns sorted by best match first.
- * Threshold: similarity >= 0.6 is considered a match.
+ * Strips 4-digit years before comparison.
+ * Threshold: similarity >= 0.55 is considered a match.
  */
 export function fuzzyMatchWines(
-  csvRows: { name: string; price: number }[],
+  csvRows: { name: string; price: number; bodega?: string; vintage?: string }[],
   wines: { id: string; nombre: string; precio_coste: number | null }[]
 ): { matched: FuzzyMatch[]; unmatched: FuzzyMatch[] } {
   const matched: FuzzyMatch[] = [];
   const unmatched: FuzzyMatch[] = [];
 
   for (const row of csvRows) {
-    const normRow = normalise(row.name);
+    const normRow = stripYear(normalise(row.name));
     let bestDist = Infinity;
     let bestWine: (typeof wines)[0] | null = null;
 
     for (const wine of wines) {
-      const normWine = normalise(wine.nombre);
+      const normWine = stripYear(normalise(wine.nombre));
       const dist = levenshtein(normRow, normWine);
       if (dist < bestDist) {
         bestDist = dist;
@@ -73,15 +82,18 @@ export function fuzzyMatchWines(
       }
     }
 
-    const maxLen = Math.max(normRow.length, bestWine ? normalise(bestWine.nombre).length : 1);
+    const maxLen = Math.max(normRow.length, bestWine ? stripYear(normalise(bestWine.nombre)).length : 1);
     const similarity = 1 - bestDist / maxLen;
+    const THRESHOLD = 0.55;
 
     const result: FuzzyMatch = {
       csvName: row.name,
       csvPrice: row.price,
-      matchedName: similarity >= 0.6 ? bestWine?.nombre ?? null : null,
-      matchedId: similarity >= 0.6 ? bestWine?.id ?? null : null,
-      currentCost: similarity >= 0.6 ? bestWine?.precio_coste ?? null : null,
+      csvBodega: row.bodega,
+      csvVintage: row.vintage,
+      matchedName: similarity >= THRESHOLD ? bestWine?.nombre ?? null : null,
+      matchedId: similarity >= THRESHOLD ? bestWine?.id ?? null : null,
+      currentCost: similarity >= THRESHOLD ? bestWine?.precio_coste ?? null : null,
       distance: bestDist,
       similarity,
     };
@@ -133,11 +145,13 @@ function findHeaderRow(rows: string[][]): { headerRowIdx: number; cols: ColumnMa
   return null;
 }
 
+export type ParsedRow = { name: string; price: number; bodega?: string; vintage?: string };
+
 function extractRows(
   dataRows: string[][],
   cols: ColumnMap
-): { name: string; price: number }[] {
-  const rows: { name: string; price: number }[] = [];
+): ParsedRow[] {
+  const rows: ParsedRow[] = [];
   for (const cells of dataRows) {
     const name = cells[cols.nameIdx]?.trim();
     const priceStr = cells[cols.priceIdx]
@@ -146,7 +160,10 @@ function extractRows(
       .trim();
     const price = parseFloat(priceStr || "");
     if (name && !isNaN(price)) {
-      rows.push({ name, price });
+      const row: ParsedRow = { name, price };
+      if (cols.bodegaIdx !== -1) row.bodega = cells[cols.bodegaIdx]?.trim() || undefined;
+      if (cols.vintageIdx !== -1) row.vintage = cells[cols.vintageIdx]?.trim() || undefined;
+      rows.push(row);
     }
   }
   return rows;
@@ -156,7 +173,7 @@ function extractRows(
  * Parse a CSV string and extract name + price columns.
  * Auto-detects header row (skips company headers).
  */
-export function parseCSV(text: string): { name: string; price: number }[] {
+export function parseCSV(text: string): ParsedRow[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return [];
 
@@ -173,12 +190,11 @@ export function parseCSV(text: string): { name: string; price: number }[] {
  * Parse an Excel file (ArrayBuffer) and extract name + price columns.
  * Auto-detects header row (skips company headers / notes).
  */
-export function parseExcel(buffer: ArrayBuffer): { name: string; price: number }[] {
+export function parseExcel(buffer: ArrayBuffer): ParsedRow[] {
   const wb = XLSX.read(buffer, { type: "array" });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   if (!sheet) return [];
 
-  // Convert to array of arrays (all strings)
   const raw: (string | number | undefined)[][] = XLSX.utils.sheet_to_json(sheet, {
     header: 1,
     defval: "",
