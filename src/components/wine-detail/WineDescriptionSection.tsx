@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Sparkles, ChevronDown, ChevronUp, Save, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -115,17 +115,18 @@ export default function WineDescriptionSection({
           </button>
         </div>
         <div className="relative">
-          <textarea
-            value={corta}
-            onChange={(e) => setCorta(e.target.value.slice(0, 160))}
-            maxLength={160}
-            rows={2}
-            placeholder="Descripción corta para la carta…"
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none"
-          />
-          <span className="absolute bottom-2 right-3 text-xs text-muted-foreground">
-            {corta.length}/160
-          </span>
+        <AutoResizeTextarea
+          value={corta}
+          onChange={(v) => setCorta(v.slice(0, 160))}
+          maxLength={160}
+          minRows={3}
+          placeholder="Descripción corta para la carta…"
+          className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none"
+          style={{ fontSize: "15px", lineHeight: "1.5" }}
+        />
+        <span className="absolute bottom-2.5 right-4 text-xs text-muted-foreground">
+          {corta.length}/160
+        </span>
         </div>
       </div>
 
@@ -162,22 +163,28 @@ export default function WineDescriptionSection({
           </div>
         </button>
         {showLarga && (
-          <div className="border-t border-border p-4 space-y-4">
-            <DescBlock
-              label="🍇 Viñedo y elaboración"
-              value={larga.vinedo || ""}
-              onChange={(v) => setLarga({ ...larga, vinedo: v })}
-            />
-            <DescBlock
-              label="🥂 Notas de cata"
-              value={larga.cata || ""}
-              onChange={(v) => setLarga({ ...larga, cata: v })}
-            />
-            <DescBlock
-              label="🍽️ Maridaje"
-              value={larga.maridaje || ""}
-              onChange={(v) => setLarga({ ...larga, maridaje: v })}
-            />
+          <div className="border-t border-border p-4 space-y-0 divide-y divide-border/60">
+            <div className="pb-4">
+              <DescBlock
+                label="🍇 Viñedo y elaboración"
+                value={larga.vinedo || ""}
+                onChange={(v) => setLarga({ ...larga, vinedo: v })}
+              />
+            </div>
+            <div className="py-4">
+              <DescBlock
+                label="🥂 Notas de cata"
+                value={larga.cata || ""}
+                onChange={(v) => setLarga({ ...larga, cata: v })}
+              />
+            </div>
+            <div className="pt-4">
+              <DescBlock
+                label="🍽️ Maridaje"
+                value={larga.maridaje || ""}
+                onChange={(v) => setLarga({ ...larga, maridaje: v })}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -187,12 +194,13 @@ export default function WineDescriptionSection({
         <h3 className="font-display text-base font-semibold text-foreground">
           Notas internas
         </h3>
-        <textarea
+        <AutoResizeTextarea
           value={notas}
-          onChange={(e) => setNotas(e.target.value)}
-          rows={3}
+          onChange={(v) => setNotas(v)}
+          minRows={3}
           placeholder="Notas privadas sobre este vino…"
-          className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none"
+          className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none"
+          style={{ fontSize: "15px", lineHeight: "1.5" }}
         />
       </div>
 
@@ -213,6 +221,50 @@ export default function WineDescriptionSection({
   );
 }
 
+function AutoResizeTextarea({
+  value,
+  onChange,
+  minRows = 3,
+  maxLength,
+  placeholder,
+  className,
+  style,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  minRows?: number;
+  maxLength?: number;
+  placeholder?: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 22.5;
+    const minHeight = lineHeight * minRows + 24; // 24 = py-3 top+bottom
+    el.style.height = Math.max(el.scrollHeight, minHeight) + "px";
+  }, [minRows]);
+
+  useEffect(() => { resize(); }, [value, resize]);
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
+      maxLength={maxLength}
+      placeholder={placeholder}
+      className={className}
+      style={{ ...style, overflow: "hidden" }}
+      onInput={resize}
+    />
+  );
+}
+
 function DescBlock({
   label,
   value,
@@ -224,12 +276,13 @@ function DescBlock({
 }) {
   return (
     <div>
-      <p className="text-xs text-muted-foreground mb-1 font-medium">{label}</p>
-      <textarea
+      <p className="text-xs text-muted-foreground mb-1.5 font-medium">{label}</p>
+      <AutoResizeTextarea
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        rows={3}
-        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none"
+        onChange={onChange}
+        minRows={3}
+        className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 resize-none"
+        style={{ fontSize: "15px", lineHeight: "1.5" }}
       />
     </div>
   );
