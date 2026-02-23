@@ -114,6 +114,13 @@ export default function BodegasList() {
                       <h3 className="font-display text-base font-semibold text-foreground truncate">
                         {bodega.nombre}
                       </h3>
+                      <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                        bodega.tipo_entidad === 'distribuidor'
+                          ? 'bg-accent text-accent-foreground'
+                          : 'bg-primary/10 text-primary'
+                      }`}>
+                        {bodega.tipo_entidad === 'distribuidor' ? 'Distrib.' : 'Bodega'}
+                      </span>
                       {hasContact && (
                         <span className="w-2 h-2 rounded-full shrink-0 bg-[hsl(var(--margin-ok))]" />
                       )}

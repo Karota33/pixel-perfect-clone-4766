@@ -1,0 +1,1 @@
+ALTER TABLE public.bodegas ADD COLUMN IF NOT EXISTS tipo_entidad text NOT NULL DEFAULT 'bodega';

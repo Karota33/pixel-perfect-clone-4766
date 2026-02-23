@@ -148,7 +148,7 @@ export default function WineDetail() {
               className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
             >
               <option value="">Sin bodega</option>
-              {bodegas.map((b) => (
+              {bodegas.filter((b) => b.tipo_entidad === 'bodega').map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.nombre}
                 </option>

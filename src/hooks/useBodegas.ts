@@ -16,6 +16,7 @@ export interface Bodega {
   condiciones: string | null;
   notas: string | null;
   activa: boolean | null;
+  tipo_entidad: string;
 }
 
 export function useBodegas() {
