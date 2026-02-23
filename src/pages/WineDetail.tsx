@@ -28,6 +28,7 @@ export default function WineDetail() {
   const [precioCoste, setPrecioCoste] = useState(wine?.precio_coste ?? 0);
   const [doValue, setDoValue] = useState("");
   const [formatoMl, setFormatoMl] = useState(750);
+  const [subtipo, setSubtipo] = useState<string | null>(null);
   const [selectedBodegaId, setSelectedBodegaId] = useState<string | null>(null);
   const [showDecrementSheet, setShowDecrementSheet] = useState(false);
   const [stockRefreshKey, setStockRefreshKey] = useState(0);
@@ -41,13 +42,14 @@ export default function WineDetail() {
     do: string | null;
     foto_url: string | null;
     formato_ml: number | null;
+    subtipo: string | null;
   } | null>(null);
 
   useEffect(() => {
     if (!wine) return;
     supabase
       .from("vinos")
-      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url, formato_ml")
+      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url, formato_ml, subtipo")
       .eq("nombre", wine.nombre)
       .limit(1)
       .single()
@@ -61,6 +63,7 @@ export default function WineDetail() {
       setSelectedBodegaId(supaWine.bodega_id);
       setDoValue(supaWine.do || wine?.do || "");
       setFormatoMl(supaWine.formato_ml ?? 750);
+      setSubtipo(supaWine.subtipo ?? null);
     }
   }, [supaWine]);
 
@@ -147,6 +150,7 @@ export default function WineDetail() {
       const updates: Record<string, any> = {};
       if (doValue !== (supaWine.do || "")) updates.do = doValue || null;
       if (formatoMl !== (supaWine.formato_ml ?? 750)) updates.formato_ml = formatoMl;
+      if (subtipo !== (supaWine.subtipo ?? null)) updates.subtipo = subtipo;
       if (Object.keys(updates).length > 0) {
         await supabase.from("vinos").update(updates).eq("id", supaWine.id);
       }
@@ -196,6 +200,8 @@ export default function WineDetail() {
               onSave={handleSave}
               formatoMl={formatoMl}
               setFormatoMl={setFormatoMl}
+              subtipo={subtipo}
+              setSubtipo={setSubtipo}
             />
           </TabsContent>
 

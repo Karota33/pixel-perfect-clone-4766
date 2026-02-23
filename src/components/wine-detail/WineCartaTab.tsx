@@ -55,6 +55,8 @@ interface Props {
   onSave: () => void;
   formatoMl: number;
   setFormatoMl: (v: number) => void;
+  subtipo: string | null;
+  setSubtipo: (v: string | null) => void;
 }
 
 function DoSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -144,6 +146,7 @@ export default function WineCartaTab({
   wine, supaWine, stock, precioCarta, setPrecioCarta,
   doValue, setDoValue, bodegas, selectedBodegaId, onBodegaChange,
   onIncrement, onDecrement, onSave, formatoMl, setFormatoMl,
+  subtipo, setSubtipo,
 }: Props) {
   const copasServicio = COPAS_SERVICIO[formatoMl] ?? 6;
   const copaMaridajeMl = getCopaMaridajeMl();
@@ -184,6 +187,19 @@ export default function WineCartaTab({
       <div className="grid grid-cols-2 gap-3">
         <InfoItem label="Tipo" value={getTypeLabel(wine.tipo)} />
         <InfoItem label="Isla" value={getCanonicalIsland(wine.isla)} />
+        {wine.tipo === "blanco" && (
+          <div className="bg-card rounded-lg border border-border p-3">
+            <label className="text-xs text-muted-foreground mb-1 block">Subtipo</label>
+            <select
+              value={subtipo || ""}
+              onChange={(e) => setSubtipo(e.target.value || null)}
+              className="w-full text-sm font-medium text-foreground bg-transparent focus:outline-none cursor-pointer"
+            >
+              <option value="">(ninguno)</option>
+              <option value="orange">Orange / Maceración</option>
+            </select>
+          </div>
+        )}
         <DoSelector value={doValue} onChange={setDoValue} />
         <FormatoSelector value={formatoMl} onChange={setFormatoMl} />
         <InfoItem label="Añada" value={wine.anada?.toString() || "—"} />
