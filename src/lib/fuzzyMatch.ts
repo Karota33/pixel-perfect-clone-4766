@@ -1,3 +1,5 @@
+import * as XLSX from "xlsx";
+
 /**
  * Levenshtein distance between two strings (case-insensitive).
  */
@@ -95,40 +97,96 @@ export function fuzzyMatchWines(
   return { matched, unmatched };
 }
 
-/**
- * Parse a CSV string and extract name + price columns.
- * Auto-detects column names.
- */
-export function parseCSV(
-  text: string
+// --- Header matchers (case-insensitive, substring) ---
+
+const NAME_PATTERNS = ["nombre", "vino", "wine", "producto"];
+const PRICE_PATTERNS = ["precio", "price", "coste", "pvp", "€"];
+const BODEGA_PATTERNS = ["bodega", "productor", "producer", "winery"];
+const VINTAGE_PATTERNS = ["añada", "anada", "vintage", "año", "year"];
+
+function matchesAny(header: string, patterns: string[]): boolean {
+  const h = header.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return patterns.some((p) => h.includes(p.normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+}
+
+interface ColumnMap {
+  nameIdx: number;
+  priceIdx: number;
+  bodegaIdx: number;
+  vintageIdx: number;
+}
+
+function findHeaderRow(rows: string[][]): { headerRowIdx: number; cols: ColumnMap } | null {
+  for (let r = 0; r < Math.min(rows.length, 10); r++) {
+    const cells = rows[r];
+    if (!cells || cells.length < 2) continue;
+
+    const nameIdx = cells.findIndex((c) => matchesAny(c, NAME_PATTERNS));
+    const priceIdx = cells.findIndex((c) => matchesAny(c, PRICE_PATTERNS));
+
+    if (nameIdx !== -1 && priceIdx !== -1) {
+      const bodegaIdx = cells.findIndex((c) => matchesAny(c, BODEGA_PATTERNS));
+      const vintageIdx = cells.findIndex((c) => matchesAny(c, VINTAGE_PATTERNS));
+      return { headerRowIdx: r, cols: { nameIdx, priceIdx, bodegaIdx, vintageIdx } };
+    }
+  }
+  return null;
+}
+
+function extractRows(
+  dataRows: string[][],
+  cols: ColumnMap
 ): { name: string; price: number }[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return [];
-
-  // Detect separator
-  const sep = lines[0].includes(";") ? ";" : ",";
-  const headers = lines[0].split(sep).map((h) => h.trim().toLowerCase().replace(/"/g, ""));
-
-  // Find name column
-  const nameIdx = headers.findIndex((h) =>
-    ["nombre", "name", "vino", "wine", "producto", "product", "referencia", "ref", "nombre del vino"].includes(h)
-  );
-  // Find price column
-  const priceIdx = headers.findIndex((h) =>
-    ["precio", "price", "coste", "cost", "pvp", "precio_coste", "precio_ud", "importe", "precio (€/ud)", "precio (eur)", "precio €", "p.v.p."].includes(h)
-  );
-
-  if (nameIdx === -1 || priceIdx === -1) return [];
-
   const rows: { name: string; price: number }[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(sep).map((c) => c.trim().replace(/"/g, ""));
-    const name = cols[nameIdx];
-    const priceStr = cols[priceIdx]?.replace(",", ".").replace(/[€$]/g, "");
-    const price = parseFloat(priceStr);
+  for (const cells of dataRows) {
+    const name = cells[cols.nameIdx]?.trim();
+    const priceStr = cells[cols.priceIdx]
+      ?.replace(",", ".")
+      .replace(/[€$\s]/g, "")
+      .trim();
+    const price = parseFloat(priceStr || "");
     if (name && !isNaN(price)) {
       rows.push({ name, price });
     }
   }
   return rows;
+}
+
+/**
+ * Parse a CSV string and extract name + price columns.
+ * Auto-detects header row (skips company headers).
+ */
+export function parseCSV(text: string): { name: string; price: number }[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return [];
+
+  const sep = lines[0].includes(";") ? ";" : ",";
+  const allRows = lines.map((l) => l.split(sep).map((c) => c.trim().replace(/"/g, "")));
+
+  const result = findHeaderRow(allRows);
+  if (!result) return [];
+
+  return extractRows(allRows.slice(result.headerRowIdx + 1), result.cols);
+}
+
+/**
+ * Parse an Excel file (ArrayBuffer) and extract name + price columns.
+ * Auto-detects header row (skips company headers / notes).
+ */
+export function parseExcel(buffer: ArrayBuffer): { name: string; price: number }[] {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  if (!sheet) return [];
+
+  // Convert to array of arrays (all strings)
+  const raw: (string | number | undefined)[][] = XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    defval: "",
+  });
+  const allRows = raw.map((row) => row.map((cell) => String(cell ?? "")));
+
+  const result = findHeaderRow(allRows);
+  if (!result) return [];
+
+  return extractRows(allRows.slice(result.headerRowIdx + 1), result.cols);
 }

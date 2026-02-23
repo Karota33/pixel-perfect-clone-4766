@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { parseCSV, fuzzyMatchWines, FuzzyMatch } from "@/lib/fuzzyMatch";
+import { parseCSV, parseExcel, fuzzyMatchWines, FuzzyMatch } from "@/lib/fuzzyMatch";
 import { ArrowLeft, Upload, Check, AlertTriangle, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -28,11 +28,18 @@ export default function PriceComparator() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const text = await file.text();
-    const csvRows = parseCSV(text);
+    let csvRows: { name: string; price: number }[];
+    const isExcel = /\.xlsx?$/i.test(file.name);
+    if (isExcel) {
+      const buffer = await file.arrayBuffer();
+      csvRows = parseExcel(buffer);
+    } else {
+      const text = await file.text();
+      csvRows = parseCSV(text);
+    }
     if (csvRows.length === 0) {
       toast.error(
-        "No se encontraron columnas válidas. El CSV debe tener columnas 'nombre' y 'precio' (o similares)."
+        "No se encontraron columnas válidas. El archivo debe tener columnas 'nombre' y 'precio' (o similares)."
       );
       return;
     }
