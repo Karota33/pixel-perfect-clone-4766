@@ -52,25 +52,44 @@ export default function WineDetail() {
 
   const fetchSupaWine = useCallback(async () => {
     if (!wine) return;
+    const cols = "id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url, formato_ml, subtipo, graduacion, temp_servicio_min, temp_servicio_max, crianza, puntuacion_parker";
     console.log("[fetchSupaWine] buscando:", wine.nombre, "anada:", wine.anada);
 
-    // Try nombre + anada first for precision
-    let query = supabase
-      .from("vinos")
-      .select("id, descripcion_corta, descripcion_larga, notas_internas, bodega_id, do, foto_url, formato_ml, subtipo, graduacion, temp_servicio_min, temp_servicio_max, crianza, puntuacion_parker")
-      .ilike("nombre", wine.nombre);
-
-    if (wine.anada != null) {
-      query = query.eq("anada", wine.anada);
-    }
+    // Attempt 1: full name match
+    let query = supabase.from("vinos").select(cols).ilike("nombre", wine.nombre);
+    if (wine.anada != null) query = query.eq("anada", wine.anada);
 
     const { data, error } = await query.limit(1);
     console.log("[fetchSupaWine] result:", data?.length, "first:", data?.[0]?.id, "error:", error?.message);
 
     if (error) {
       console.error("[fetchSupaWine] error:", error.code, error.message);
-    } else if (data && data.length > 0) {
+    }
+
+    if (data && data.length > 0) {
       setSupaWine(data[0] as any);
+      return;
+    }
+
+    // Attempt 2: if name ends with a year, strip it and search by name + anada
+    const yearMatch = wine.nombre.match(/\s(\d{4})$/);
+    if (yearMatch) {
+      const cleanName = wine.nombre.replace(/\s\d{4}$/, "").trim();
+      const anada = parseInt(yearMatch[1], 10);
+      console.log("[fetchSupaWine] fallback sin año:", cleanName, "anada:", anada);
+
+      const { data: data2, error: error2 } = await supabase
+        .from("vinos")
+        .select(cols)
+        .ilike("nombre", cleanName)
+        .eq("anada", anada)
+        .limit(1);
+
+      if (error2) {
+        console.error("[fetchSupaWine] fallback error:", error2.code, error2.message);
+      } else if (data2 && data2.length > 0) {
+        setSupaWine(data2[0] as any);
+      }
     }
   }, [wine?.nombre, wine?.anada]);
 
