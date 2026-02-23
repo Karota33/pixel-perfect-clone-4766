@@ -44,6 +44,11 @@
     --wine-sparkling: 48 50% 80%;
     --wine-sweet: 30 70% 55%;
 
+    --margin-ok: 142 71% 45%;
+    --margin-warn: 38 92% 50%;
+    --margin-danger: 0 84% 60%;
+    --margin-nodata: 0 0% 70%;
+
     --font-display: 'Cormorant Garamond', serif;
     --font-body: 'DM Sans', sans-serif;
 

@@ -1,5 +1,7 @@
 import { Wine, getCanonicalIsland, getTypeLabel } from "@/types/wine";
 import { useNavigate } from "react-router-dom";
+import { calcMarginReal, getMarginStatus, getMarginColor } from "@/lib/margins";
+import { useMarginSettings } from "@/hooks/useMarginSettings";
 
 interface WineCardProps {
   wine: Wine;
@@ -7,7 +9,12 @@ interface WineCardProps {
 
 export default function WineCard({ wine }: WineCardProps) {
   const navigate = useNavigate();
+  const { getMarginFor } = useMarginSettings();
   const isAvailable = wine.stock !== null && wine.stock > 0;
+
+  const marginTarget = getMarginFor(wine.tipo);
+  const marginReal = calcMarginReal(wine.precio_carta, wine.precio_coste);
+  const marginStatus = getMarginStatus(marginReal, marginTarget);
 
   return (
     <button
@@ -24,6 +31,10 @@ export default function WineCard({ wine }: WineCardProps) {
                   ? "hsl(var(--wine-available))"
                   : "hsl(var(--wine-unavailable))",
               }}
+            />
+            <span
+              className="inline-block w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: getMarginColor(marginStatus) }}
             />
             <h3 className="font-display text-base font-semibold text-foreground truncate">
               {wine.nombre}
