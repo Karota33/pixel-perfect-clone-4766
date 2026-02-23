@@ -2,19 +2,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useWines } from "@/hooks/useWines";
 import { useMarginSettings } from "@/hooks/useMarginSettings";
 import { usePriceHistory } from "@/hooks/usePriceHistory";
-import { getCanonicalIsland, getTypeLabel } from "@/types/wine";
-import { calcMarginReal, calcPvpSugerido, getMarginStatus, getMarginColor } from "@/lib/margins";
-import { ArrowLeft, Minus, Plus, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import WineDescriptionSection from "@/components/wine-detail/WineDescriptionSection";
-import WineCompletenessBar from "@/components/wine-detail/WineCompletenessBar";
-import WineMaridajesSection from "@/components/wine-detail/WineMaridajesSection";
-import WineDocumentsSection from "@/components/wine-detail/WineDocumentsSection";
-import StockDecrementSheet from "@/components/wine-detail/StockDecrementSheet";
-import StockHistorySection from "@/components/wine-detail/StockHistorySection";
 import { useBodegas } from "@/hooks/useBodegas";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import StockDecrementSheet from "@/components/wine-detail/StockDecrementSheet";
+import WineCartaTab from "@/components/wine-detail/WineCartaTab";
+import WineBodegaTab from "@/components/wine-detail/WineBodegaTab";
+import WineGestionTab from "@/components/wine-detail/WineGestionTab";
 
 export default function WineDetail() {
   const { id } = useParams<{ id: string }>();
@@ -22,19 +19,18 @@ export default function WineDetail() {
   const { getWine, updateWine } = useWines();
   const { getMarginFor } = useMarginSettings();
   const { record, getForWine } = usePriceHistory();
+  const { bodegas, fetchBodegas } = useBodegas();
 
   const wine = getWine(Number(id));
 
   const [stock, setStock] = useState(wine?.stock ?? 0);
   const [precioCarta, setPrecioCarta] = useState(wine?.precio_carta ?? 0);
   const [precioCoste, setPrecioCoste] = useState(wine?.precio_coste ?? 0);
-  const [showHistory, setShowHistory] = useState(false);
-  const { bodegas } = useBodegas();
+  const [doValue, setDoValue] = useState("");
   const [selectedBodegaId, setSelectedBodegaId] = useState<string | null>(null);
   const [showDecrementSheet, setShowDecrementSheet] = useState(false);
   const [stockRefreshKey, setStockRefreshKey] = useState(0);
 
-  // Supabase wine record for descriptions
   const [supaWine, setSupaWine] = useState<{
     id: string;
     descripcion_corta: string | null;
@@ -59,7 +55,10 @@ export default function WineDetail() {
   }, [wine?.nombre]);
 
   useEffect(() => {
-    if (supaWine) setSelectedBodegaId(supaWine.bodega_id);
+    if (supaWine) {
+      setSelectedBodegaId(supaWine.bodega_id);
+      setDoValue(supaWine.do || wine?.do || "");
+    }
   }, [supaWine]);
 
   useEffect(() => {
@@ -70,17 +69,17 @@ export default function WineDetail() {
     }
   }, [wine]);
 
+  const persistStock = useCallback(async (newStock: number) => {
+    if (!supaWine) return;
+    await supabase.from("vinos").update({ stock_actual: newStock }).eq("id", supaWine.id);
+  }, [supaWine]);
+
   const recordStockMovement = useCallback(async (
-    tipo: string,
-    cantidad: number,
-    motivo: string,
+    tipo: string, cantidad: number, motivo: string,
   ) => {
     if (!supaWine) return;
     await supabase.from("stock_movimientos").insert({
-      vino_id: supaWine.id,
-      tipo,
-      cantidad,
-      motivo,
+      vino_id: supaWine.id, tipo, cantidad, motivo,
     });
     setStockRefreshKey((k) => k + 1);
   }, [supaWine]);
@@ -94,13 +93,26 @@ export default function WineDetail() {
     setShowDecrementSheet(false);
     const newStock = Math.max(0, stock - 1);
     setStock(newStock);
+    updateWine(wine!.id, { stock: newStock });
+    persistStock(newStock);
     recordStockMovement("salida", 1, motivo);
   };
 
   const handleIncrement = () => {
     const newStock = stock + 1;
     setStock(newStock);
+    updateWine(wine!.id, { stock: newStock });
+    persistStock(newStock);
     recordStockMovement("entrada", 1, "entrada");
+  };
+
+  const handleBodegaChange = async (newId: string | null) => {
+    setSelectedBodegaId(newId);
+    if (supaWine) {
+      await supabase.from("vinos").update({ bodega_id: newId }).eq("id", supaWine.id);
+      toast.success("Bodega actualizada");
+      fetchBodegas();
+    }
   };
 
   if (!wine) {
@@ -112,13 +124,9 @@ export default function WineDetail() {
   }
 
   const marginTarget = getMarginFor(wine.tipo);
-  const marginReal = calcMarginReal(precioCarta || null, precioCoste || null);
-  const pvpSugerido = calcPvpSugerido(precioCoste || null, marginTarget);
-  const marginStatus = getMarginStatus(marginReal, marginTarget);
-  const ingresoBruto = precioCarta && precioCoste ? precioCarta - precioCoste : null;
   const priceHistory = getForWine(wine.id);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if ((precioCarta || null) !== wine.precio_carta) {
       record(wine.id, "precio_carta", wine.precio_carta, precioCarta || null);
     }
@@ -126,10 +134,15 @@ export default function WineDetail() {
       record(wine.id, "precio_coste", wine.precio_coste, precioCoste || null);
     }
     updateWine(wine.id, {
-      stock,
       precio_carta: precioCarta || null,
       precio_coste: precioCoste || null,
     });
+
+    // Save DO to supabase
+    if (supaWine && doValue !== (supaWine.do || "")) {
+      await supabase.from("vinos").update({ do: doValue || null }).eq("id", supaWine.id);
+    }
+
     toast.success("Guardado");
   };
 
@@ -149,278 +162,57 @@ export default function WineDetail() {
         </div>
       </header>
 
-      <main className="container max-w-2xl py-6 space-y-6 animate-fade-in">
-        {/* Hero photo */}
-        {supaWine?.foto_url && (
-          <div className="flex justify-center">
-            <img src={supaWine.foto_url} alt={wine.nombre} className="h-48 object-contain rounded-xl" />
-          </div>
-        )}
+      <main className="container max-w-2xl py-6 animate-fade-in">
+        <Tabs defaultValue="carta" className="w-full">
+          <TabsList className="w-full mb-6">
+            <TabsTrigger value="carta" className="flex-1">Carta</TabsTrigger>
+            <TabsTrigger value="bodega" className="flex-1">Bodega</TabsTrigger>
+            <TabsTrigger value="gestion" className="flex-1">Gestión</TabsTrigger>
+          </TabsList>
 
-        {/* Name */}
-        <div className="space-y-1">
-          <h2 className="font-display text-2xl font-bold text-foreground leading-tight">
-            {wine.nombre}
-          </h2>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Bodega</label>
-            <select
-              value={selectedBodegaId || ""}
-              onChange={async (e) => {
-                const newId = e.target.value || null;
-                setSelectedBodegaId(newId);
-                if (supaWine) {
-                  await supabase.from("vinos").update({ bodega_id: newId }).eq("id", supaWine.id);
-                  toast.success("Bodega actualizada");
-                }
-              }}
-              className="w-full px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
-            >
-              <option value="">Sin bodega</option>
-              {bodegas.filter((b) => b.tipo_entidad === 'bodega').map((b) => (
-                <option key={b.id} value={b.id}>{b.nombre}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Completeness Bar */}
-        {supaWine && (
-          <WineCompletenessBar
-            bodegaId={supaWine.bodega_id}
-            doValue={supaWine.do || wine.do}
-            descripcionCorta={supaWine.descripcion_corta}
-            descripcionLarga={supaWine.descripcion_larga}
-            precioCoste={precioCoste || wine.precio_coste}
-            uvas={wine.uvas || null}
-            anada={wine.anada}
-          />
-        )}
-
-        {/* Info Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <InfoItem label="Tipo" value={getTypeLabel(wine.tipo)} />
-          <InfoItem label="Isla" value={getCanonicalIsland(wine.isla)} />
-          <InfoItem label="Añada" value={wine.anada?.toString() || "—"} />
-        </div>
-
-        {wine.uvas && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Variedades</p>
-            <p className="text-sm text-foreground">{wine.uvas}</p>
-          </div>
-        )}
-
-        {/* Editable Fields */}
-        <div className="bg-card rounded-xl border border-border p-4 space-y-5">
-          {/* Stock */}
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">
-              Stock (unidades)
-            </label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleDecrement}
-                disabled={stock <= 0}
-                className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50"
-              >
-                <Minus className="w-4 h-4" />
-              </button>
-              <span className="font-display text-2xl font-bold text-foreground w-16 text-center">
-                {stock}
-              </span>
-              <button
-                onClick={handleIncrement}
-                className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-accent transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Precio Carta */}
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Precio carta (€)</label>
-            <input
-              type="number"
-              value={precioCarta || ""}
-              onChange={(e) => setPrecioCarta(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+          <TabsContent value="carta">
+            <WineCartaTab
+              wine={wine}
+              supaWine={supaWine}
+              stock={stock}
+              precioCarta={precioCarta}
+              setPrecioCarta={setPrecioCarta}
+              doValue={doValue}
+              setDoValue={setDoValue}
+              bodegas={bodegas}
+              selectedBodegaId={selectedBodegaId}
+              onBodegaChange={handleBodegaChange}
+              onIncrement={handleIncrement}
+              onDecrement={handleDecrement}
+              onSave={handleSave}
             />
-          </div>
+          </TabsContent>
 
-          {/* Precio Coste */}
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Precio coste (€)</label>
-            <input
-              type="number"
-              value={precioCoste || ""}
-              onChange={(e) => setPrecioCoste(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20"
+          <TabsContent value="bodega">
+            <WineBodegaTab supaWine={supaWine} wine={wine} />
+          </TabsContent>
+
+          <TabsContent value="gestion">
+            <WineGestionTab
+              wine={wine}
+              supaWine={supaWine}
+              precioCoste={precioCoste}
+              setPrecioCoste={setPrecioCoste}
+              precioCarta={precioCarta}
+              marginTarget={marginTarget}
+              priceHistory={priceHistory}
+              stockRefreshKey={stockRefreshKey}
+              onFotoUpdated={(url) => setSupaWine((prev) => prev ? { ...prev, foto_url: url } : prev)}
             />
-          </div>
-
-          {/* Margin Section */}
-          {precioCoste > 0 && (
-            <div className="pt-3 border-t border-border space-y-3">
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: getMarginColor(marginStatus) }}
-                />
-                <p className="text-xs text-muted-foreground">Margen objetivo: {marginTarget}%</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Margen real</p>
-                  <p className="font-display text-lg font-bold" style={{ color: getMarginColor(marginStatus) }}>
-                    {marginReal !== null ? `${marginReal.toFixed(1)}%` : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">PVP sugerido</p>
-                  <p className="font-display text-lg font-bold text-foreground">
-                    {pvpSugerido !== null ? `${pvpSugerido.toFixed(0)}€` : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Ingreso bruto/ud.</p>
-                  <p className="font-display text-lg font-bold text-foreground">
-                    {ingresoBruto !== null ? `${ingresoBruto.toFixed(1)}€` : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">vs. objetivo</p>
-                  <p className="font-display text-lg font-bold" style={{ color: getMarginColor(marginStatus) }}>
-                    {marginReal !== null
-                      ? `${(marginReal - marginTarget) > 0 ? "+" : ""}${(marginReal - marginTarget).toFixed(1)}%`
-                      : "—"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Save */}
-          <button
-            onClick={handleSave}
-            className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-lg font-medium hover:opacity-90 transition-opacity"
-          >
-            <Save className="w-4 h-4" />
-            Guardar cambios
-          </button>
-        </div>
-
-        {/* Stock History */}
-        {supaWine && (
-          <StockHistorySection vinoId={supaWine.id} refreshKey={stockRefreshKey} />
-        )}
-
-        {/* Wine Description Section */}
-        {supaWine && (
-          <WineDescriptionSection
-            vinoId={supaWine.id}
-            nombre={wine.nombre}
-            tipo={wine.tipo}
-            isla={wine.isla}
-            uvas={wine.uvas || null}
-            anada={wine.anada}
-            bodega={wine.bodega}
-            dop={supaWine.do || wine.do}
-            initialCorta={supaWine.descripcion_corta || ""}
-            initialLarga={supaWine.descripcion_larga || {}}
-            initialNotas={supaWine.notas_internas || ""}
-          />
-        )}
-
-        {/* Maridajes Section */}
-        {supaWine && (
-          <WineMaridajesSection
-            vinoId={supaWine.id}
-            nombre={wine.nombre}
-            tipo={wine.tipo}
-            uvas={wine.uvas || null}
-          />
-        )}
-
-        {/* Documents Section */}
-        {supaWine && (
-          <WineDocumentsSection
-            vinoId={supaWine.id}
-            vinoNombre={wine?.nombre || ""}
-            vinoAnada={wine?.anada ?? null}
-            fotoUrl={supaWine.foto_url}
-            onFotoUpdated={(url) => setSupaWine((prev) => prev ? { ...prev, foto_url: url } : prev)}
-          />
-        )}
-
-        {/* Price History */}
-        {priceHistory.length > 0 && (
-          <div className="bg-card rounded-xl border border-border overflow-hidden">
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-accent/50 transition-colors"
-            >
-              <span className="text-sm font-medium text-foreground">
-                Historial de precios ({priceHistory.length})
-              </span>
-              {showHistory ? (
-                <ChevronUp className="w-4 h-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              )}
-            </button>
-            {showHistory && (
-              <div className="border-t border-border">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-muted-foreground border-b border-border">
-                      <th className="text-left px-4 py-2">Fecha</th>
-                      <th className="text-left px-4 py-2">Campo</th>
-                      <th className="text-right px-4 py-2">Anterior</th>
-                      <th className="text-right px-4 py-2">Nuevo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {priceHistory.map((ev, i) => (
-                      <tr key={i} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2 text-muted-foreground">
-                          {new Date(ev.date).toLocaleDateString("es-ES")}
-                        </td>
-                        <td className="px-4 py-2 text-foreground">
-                          {ev.field === "precio_carta" ? "P. Carta" : "P. Coste"}
-                        </td>
-                        <td className="px-4 py-2 text-right text-muted-foreground">
-                          {ev.oldValue !== null ? `${ev.oldValue}€` : "—"}
-                        </td>
-                        <td className="px-4 py-2 text-right text-foreground font-medium">
-                          {ev.newValue !== null ? `${ev.newValue}€` : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+          </TabsContent>
+        </Tabs>
       </main>
 
-      {/* Bottom Sheet for stock decrement */}
       <StockDecrementSheet
         open={showDecrementSheet}
         onConfirm={handleDecrementConfirm}
         onCancel={() => setShowDecrementSheet(false)}
       />
-    </div>
-  );
-}
-
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-card rounded-lg border border-border p-3">
-      <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-      <p className="text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }
