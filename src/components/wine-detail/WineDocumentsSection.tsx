@@ -296,6 +296,7 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
   };
 
   const handleApplyExtracted = async (selectedKeys: string[]) => {
+    console.log("[handleApplyExtracted] selectedKeys:", selectedKeys);
     if (selectedKeys.length === 0) {
       setExtractedFields(null);
       return;
@@ -310,12 +311,23 @@ export default function WineDocumentsSection({ vinoId, vinoNombre, vinoAnada, fo
       }
     }
 
-    const { error } = await supabase.from("vinos").update(updates).eq("id", vinoId);
-    if (error) {
-      toast.error("Error al actualizar: " + error.message);
-    } else {
-      toast.success(`Ficha actualizada con ${selectedKeys.length} campo${selectedKeys.length > 1 ? "s" : ""} nuevo${selectedKeys.length > 1 ? "s" : ""}`);
-      onWineDataUpdated?.();
+    console.log("[handleApplyExtracted] Updating vino", vinoId, "with:", JSON.stringify(updates));
+    try {
+      const { data, error } = await supabase.from("vinos").update(updates).eq("id", vinoId).select();
+      console.log("[handleApplyExtracted] Response - data:", JSON.stringify(data), "error:", error);
+      if (error) {
+        console.error("[handleApplyExtracted] DB error:", error);
+        toast.error("Error al actualizar: " + error.message);
+      } else if (!data || data.length === 0) {
+        console.error("[handleApplyExtracted] No rows updated - vinoId may not exist:", vinoId);
+        toast.error("No se encontró el vino para actualizar");
+      } else {
+        toast.success(`${selectedKeys.length} campo${selectedKeys.length > 1 ? "s" : ""} actualizado${selectedKeys.length > 1 ? "s" : ""}`);
+        onWineDataUpdated?.();
+      }
+    } catch (err: any) {
+      console.error("[handleApplyExtracted] Exception:", err);
+      toast.error("Error inesperado: " + (err.message || ""));
     }
     setExtractedFields(null);
   };
