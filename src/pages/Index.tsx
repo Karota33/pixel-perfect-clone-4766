@@ -7,8 +7,11 @@ import WineCard from "@/components/WineCard";
 import FilterChips from "@/components/FilterChips";
 import SearchBar from "@/components/SearchBar";
 import NewWineDrawer from "@/components/NewWineDrawer";
-import { Wine as WineIcon, Settings, Warehouse, FileText, Plus } from "lucide-react";
+import { Wine as WineIcon, Settings, Warehouse, FileText, Plus, Download, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import * as XLSX from "xlsx";
 
 const TYPE_OPTIONS = ["Blanco", "Orange", "Tinto", "Rosado", "Espumoso", "Dulce"];
 
@@ -21,6 +24,54 @@ export default function Index() {
   const [islandFilter, setIslandFilter] = useState("");
   const [marginLowOnly, setMarginLowOnly] = useState(false);
   const [showNewWine, setShowNewWine] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from("vinos")
+        .select(`id_local, nombre, anada, tipo, subtipo, isla, "do", uvas, precio_carta, stock_actual, precio_coste, foto_url, bodegas ( nombre )`)
+        .order("nombre", { ascending: true });
+
+      if (error) throw error;
+
+      const cabeceras = [
+        "NOMBRE DEL VINO", "AÑADA", "TIPO", "ISLA / ORIGEN", "UVAS",
+        "PRECIO CARTA (€)", "STOCK ACTUAL", "BODEGA / ELABORADOR", "D.O. OFICIAL",
+        "SUBTIPO", "PRECIO COSTE (€)", "PROVEEDOR / DISTRIBUIDOR", "CONTACTO PROVEEDOR", "URL FOTO",
+      ];
+
+      const filas = (data || []).map((v: any) => [
+        (v.nombre || "").trim(),
+        v.anada ?? "",
+        v.tipo ? v.tipo.toLowerCase().trim() : "",
+        v.isla || "",
+        v.uvas || "",
+        v.precio_carta != null ? Number(Number(v.precio_carta).toFixed(2)) : "",
+        v.stock_actual ?? 0,
+        v.bodegas?.nombre || "",
+        v.do || "",
+        v.subtipo ? v.subtipo.toLowerCase().trim() : "",
+        v.precio_coste != null ? Number(Number(v.precio_coste).toFixed(2)) : "",
+        "",
+        "",
+        v.foto_url || "",
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([cabeceras, ...filas]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "INVENTARIO");
+      const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      XLSX.writeFile(wb, `Inventario_Tabaiba_${fecha}.xlsx`);
+
+      toast({ title: `Inventario exportado — ${filas.length} vinos` });
+    } catch {
+      toast({ title: "Error al exportar. Inténtalo de nuevo.", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -73,6 +124,16 @@ export default function Index() {
               <span className="text-xs text-muted-foreground font-medium">
                 {filtered.length} vino{filtered.length !== 1 ? "s" : ""}
               </span>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="p-2 rounded-lg hover:bg-accent transition-colors"
+                title="Exportar inventario"
+              >
+                {exporting
+                  ? <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#8B0000" }} />
+                  : <Download className="w-4 h-4" style={{ color: "#8B0000" }} />}
+              </button>
               <button
                 onClick={() => navigate("/bodegas")}
                 className="p-2 rounded-lg hover:bg-accent transition-colors"
